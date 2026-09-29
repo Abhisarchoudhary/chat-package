@@ -25,14 +25,25 @@
 
         <div class="rc-rail__list">
             <div class="rc-rail__section">
-                <button type="button" class="rc-rail__header" @click="pick('channel')">
-                    <span>{{ __('Channels') }}</span>
-                    <template x-if="$store.chat.abilities['create-channel']">
-                        <span class="rc-rail__add" title="{{ __('New channel') }}"><x-chat::icon name="plus" size="14" /></span>
-                    </template>
-                </button>
+                {{-- The header folds the section; the + starts something. Two
+                     jobs on one button is how a header that should collapse a
+                     list opens a dialogue instead. --}}
+                <div class="rc-rail__header">
+                    <button type="button" class="rc-rail__toggle" @click="folded.channels = ! folded.channels">
+                        <span class="rc-rail__caret" :class="folded.channels && 'rc-rail__caret--folded'">
+                            <x-chat::icon name="chevron-down" size="12" />
+                        </span>
+                        <span>{{ __('Channels') }}</span>
+                    </button>
 
-                <template x-for="conversation in channels" :key="conversation.cid">
+                    <template x-if="$store.chat.abilities['create-channel']">
+                        <button type="button" class="rc-rail__add" title="{{ __('New channel') }}" @click="pick('channel')">
+                            <x-chat::icon name="plus" size="14" />
+                        </button>
+                    </template>
+                </div>
+
+                <template x-for="conversation in (folded.channels ? [] : channels)" :key="conversation.cid">
                     <button
                         type="button"
                         class="rc-row"
@@ -47,18 +58,26 @@
                     </button>
                 </template>
 
-                <template x-if="channels.length === 0">
+                <template x-if="channels.length === 0 && ! folded.channels">
                     <p class="rc-rail__none">{{ __('No channels yet') }}</p>
                 </template>
             </div>
 
             <div class="rc-rail__section">
-                <button type="button" class="rc-rail__header" @click="pick('person')">
-                    <span>{{ __('Direct messages') }}</span>
-                    <span class="rc-rail__add" title="{{ __('Message someone') }}"><x-chat::icon name="plus" size="14" /></span>
-                </button>
+                <div class="rc-rail__header">
+                    <button type="button" class="rc-rail__toggle" @click="folded.direct = ! folded.direct">
+                        <span class="rc-rail__caret" :class="folded.direct && 'rc-rail__caret--folded'">
+                            <x-chat::icon name="chevron-down" size="12" />
+                        </span>
+                        <span>{{ __('Direct messages') }}</span>
+                    </button>
 
-                <template x-for="conversation in direct" :key="conversation.cid">
+                    <button type="button" class="rc-rail__add" title="{{ __('Message someone') }}" @click="pick('person')">
+                        <x-chat::icon name="plus" size="14" />
+                    </button>
+                </div>
+
+                <template x-for="conversation in (folded.direct ? [] : direct)" :key="conversation.cid">
                     <button
                         type="button"
                         class="rc-row"
@@ -79,7 +98,7 @@
                     </button>
                 </template>
 
-                <template x-if="direct.length === 0">
+                <template x-if="direct.length === 0 && ! folded.direct">
                     <p class="rc-rail__none">{{ __('Nobody yet') }}</p>
                 </template>
             </div>
@@ -110,10 +129,28 @@
                         </span>
                     </template>
 
-                    <span class="rc-main__title">
+                    {{-- The name, and under it who is in here. The count is the
+                         button: "2 members" that cannot say which two is an
+                         instruction to go and ask somebody. --}}
+                    <button type="button" class="rc-main__title" @click="details = ! details">
                         <strong x-text="current.title"></strong>
                         <span x-text="$store.chat.subtitle(current)"></span>
-                    </span>
+                    </button>
+
+                    <template x-if="current.type === 'team'">
+                        <button type="button" class="rc-faces" @click="details = ! details" title="{{ __('Who is in here') }}">
+                            <template x-for="person in current.people.slice(0, 4)" :key="person.id">
+                                <span class="rc-avatar rc-avatar--sm">
+                                    <template x-if="person.image"><img :src="person.image" alt=""></template>
+                                    <template x-if="! person.image"><span x-text="$store.chat.initials(person.name)"></span></template>
+                                </span>
+                            </template>
+
+                            <template x-if="current.members > 4">
+                                <span class="rc-faces__more" x-text="'+' + (current.members - 4)"></span>
+                            </template>
+                        </button>
+                    </template>
 
                     <template x-if="current.type === 'team' && $store.chat.abilities['create-channel']">
                         <button type="button" class="rc-icon-button" title="{{ __('Add people') }}" @click="pick('members')">
@@ -126,7 +163,7 @@
                             type="button"
                             class="rc-icon-button rc-icon-button--call"
                             title="{{ __('Start a call') }}"
-                            @click="$store.calls.start(current.cid, [], current.title)"
+                            @click="$store.calls.start(current.cid, current.memberIds, current.title)"
                         >
                             <x-chat::icon name="phone" />
                         </button>
@@ -157,12 +194,61 @@
                 </div>
             </div>
         </template>
+
+        {{-- Who is in the room, by name. --}}
+        <template x-if="current && details">
+            <aside class="rc-details">
+                <div class="rc-details__head">
+                    <strong>{{ __('Details') }}</strong>
+                    <button type="button" class="rc-icon-button" @click="details = false" title="{{ __('Close') }}">
+                        <x-chat::icon name="close" size="16" />
+                    </button>
+                </div>
+
+                <p class="rc-details__label" x-text="current.members + ' {{ __('members') }}'"></p>
+
+                <div class="rc-details__list">
+                    <template x-for="person in current.people" :key="person.id">
+                        <div class="rc-person rc-person--flat">
+                            <span class="rc-avatar rc-avatar--sm">
+                                <template x-if="person.image"><img :src="person.image" alt=""></template>
+                                <template x-if="! person.image"><span x-text="$store.chat.initials(person.name)"></span></template>
+                                <template x-if="person.online"><span class="rc-dot"></span></template>
+                            </span>
+
+                            <span class="rc-person__name">
+                                <strong x-text="person.name + (person.you ? ' {{ __('(you)') }}' : '')"></strong>
+                                <span x-text="person.email"></span>
+                            </span>
+
+                            <template x-if="! person.you">
+                                <button type="button" class="rc-icon-button rc-icon-button--sm" title="{{ __('Message them') }}"
+                                        @click="messagePerson(person.id)">
+                                    <x-chat::icon name="message" size="15" />
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <template x-if="current.type === 'team' && $store.chat.abilities['create-channel']">
+                    <div class="rc-details__foot">
+                        <button type="button" class="rc-button" @click="pick('members')">{{ __('Add people') }}</button>
+                    </div>
+                </template>
+            </aside>
+        </template>
     </section>
 
-    {{-- One sheet for all three: message somebody, make a channel, add people. --}}
+    {{-- One sheet for all three: message somebody, make a channel, add people.
+
+         Closing is the backdrop's own click, not `@click.outside`: the sheet
+         is created while the opening click is still travelling up the page, so
+         a document-level listener hears that very click and shuts the sheet in
+         the same breath it was opened in. --}}
     <template x-if="picking">
-        <div class="rc-modal" @keydown.escape.window="picking = false">
-            <div class="rc-modal__card" @click.outside="picking = false">
+        <div class="rc-modal" @keydown.escape.window="picking = false" @click.self="picking = false">
+            <div class="rc-modal__card">
                 <div class="rc-modal__head">
                     <p class="rc-modal__title"
                        x-text="picking === 'channel' ? '{{ __('New channel') }}' : (picking === 'members' ? '{{ __('Add people') }}' : '{{ __('New message') }}')"></p>
@@ -193,7 +279,8 @@
                                 <button
                                     type="button"
                                     class="rc-person"
-                                    :class="chosen.includes(person.id) && 'rc-person--chosen'"
+                                    :class="[chosen.includes(person.id) && 'rc-person--chosen', already(person.id) && 'rc-person--already']"
+                                    :disabled="already(person.id)"
                                     @click="picking === 'person' ? messagePerson(person.id) : toggle(person.id)"
                                 >
                                     <span class="rc-avatar rc-avatar--sm">
@@ -206,6 +293,10 @@
                                         <strong x-text="person.name"></strong>
                                         <span x-text="[person.department, person.email].filter(Boolean).join(' · ')"></span>
                                     </span>
+
+                                    <template x-if="already(person.id)">
+                                        <span class="rc-person__already">{{ __('Already here') }}</span>
+                                    </template>
 
                                     <template x-if="chosen.includes(person.id)">
                                         <span class="rc-person__tick">✓</span>

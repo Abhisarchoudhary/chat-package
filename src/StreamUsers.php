@@ -2,6 +2,7 @@
 
 namespace Revun\Chat;
 
+use Illuminate\Support\Facades\Cache;
 use Revun\Chat\Contracts\ChatParticipant;
 
 /**
@@ -25,10 +26,15 @@ final class StreamUsers
     /**
      * Write this person into Stream, and record that this portal has them.
      *
-     * Safe to call on every sign-in: it is one request, and it is how a changed
-     * name or a new photograph reaches the people they are talking to.
+     * Called on every sign-in and on every chat page, so it remembers what it
+     * last wrote and says nothing when nothing has changed. It used to cost a
+     * look-up and a write — two round trips to another continent — in front of
+     * a page that could not draw until they came back, which is three seconds
+     * of "Connecting" to tell Stream a name it already had.
+     *
+     * `$force` is for the nightly job, which is meant to write regardless.
      */
-    public function sync(ChatParticipant $person): string
+    public function sync(ChatParticipant $person, bool $force = false): string
     {
         $id = Identity::forEmail($person->chatEmail());
         $organisation = $person->chatOrganisation();
@@ -46,17 +52,26 @@ final class StreamUsers
             'departments.'.$organisation => $person->chatDepartment(),
         ];
 
-        /*
-         * Stream will not partially update a user it has never seen, so the
-         * first write has to create them. Afterwards this is one request.
-         */
-        if (! $this->exists($id)) {
-            $this->stream->post('users', ['users' => [$id => ['id' => $id, 'role' => $person->chatRole()] + $this->unflatten($set)]]);
+        $mark = 'chat.synced.'.$id;
+        $written = hash('sha256', (string) json_encode($set));
+        $last = Cache::get($mark);
 
+        if (! $force && $last === $written) {
             return $id;
         }
 
-        $this->stream->patch('users', ['users' => [['id' => $id, 'set' => $set]]]);
+        /*
+         * Stream will not partially update a user it has never seen, so the
+         * first write has to create them. Having written them once, we know
+         * they are there and can go straight to the update.
+         */
+        if ($last === null && ! $this->exists($id)) {
+            $this->stream->post('users', ['users' => [$id => ['id' => $id, 'role' => $person->chatRole()] + $this->unflatten($set)]]);
+        } else {
+            $this->stream->patch('users', ['users' => [['id' => $id, 'set' => $set]]]);
+        }
+
+        Cache::forever($mark, $written);
 
         return $id;
     }

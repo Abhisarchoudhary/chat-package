@@ -184,7 +184,8 @@
 
 /* -------------------------------------------------------------- the room */
 
-.rc-main { display: flex; flex-direction: column; min-width: 0; background: var(--rc-surface); }
+/* A row, so the details panel sits beside the room rather than under it. */
+.rc-main { display: flex; min-width: 0; position: relative; background: var(--rc-surface); }
 
 .rc-main__head {
     display: flex;
@@ -195,7 +196,22 @@
     min-height: 62px;
 }
 
-.rc-main__title { flex: 1; min-width: 0; }
+/* The name is a button now — it opens the panel that says who is here. */
+.rc-main__title {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    margin-left: -6px;
+    border: 0;
+    border-radius: 9px;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rc-main__title:hover { background: var(--rc-hover); }
 
 .rc-main__title strong {
     display: block;
@@ -772,15 +788,50 @@
 }
 
 .rc-rail__header:hover { color: #fff; }
-.rc-rail__add { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; }
-.rc-rail__header:hover .rc-rail__add { background: #ffffff1f; }
+/* The section header folds its list; the + beside it starts something. */
+.rc-rail__toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.rc-rail__toggle:hover { color: #fff; }
+.rc-rail__caret { display: grid; place-items: center; transition: transform .12s ease; }
+.rc-rail__caret--folded { transform: rotate(-90deg); }
+
+.rc-rail__add {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.rc-rail__add:hover { background: #ffffff26; color: #fff; }
 .rc-rail__none { padding: 4px 16px 8px; font-size: 12.5px; color: #6f7f9e; }
 .rc-row__icon { width: 20px; display: grid; place-items: center; color: #8fa0c0; flex: none; }
 .rc-row--on .rc-row__icon { color: #fff; }
 
 /* ------------------------------------------------------------- the room */
 
-.rc-room { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.rc-room { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .rc-room__hash { width: 36px; display: grid; place-items: center; color: var(--rc-muted); flex: none; }
 .rc-talk { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
 .rc-day span { font-size: 12px; }
@@ -789,3 +840,99 @@
 .rc-modal__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rc-person__tick { color: var(--rc-primary); font-weight: 700; }
 .rc-button:disabled { opacity: .5; cursor: default; }
+
+/* ============================================= who is in the conversation */
+
+/*
+ * A face pile and a panel of names.
+ *
+ * "2 members" without the two names is a question, not an answer — somebody
+ * has to go and ask a colleague who else is reading. The faces sit in the
+ * header where people look, and open the panel that spells them out.
+ */
+
+.rc-faces {
+    display: flex;
+    align-items: center;
+    flex: none;
+    padding: 2px 4px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    border-radius: 999px;
+}
+
+.rc-faces:hover { background: var(--rc-hover); }
+.rc-faces .rc-avatar { margin-left: -7px; box-shadow: 0 0 0 2px var(--rc-surface); }
+.rc-faces .rc-avatar:first-child { margin-left: 0; }
+
+.rc-faces__more {
+    margin-left: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--rc-muted);
+}
+
+.rc-details {
+    width: 272px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--rc-line);
+    background: var(--rc-surface);
+    min-height: 0;
+}
+
+.rc-details__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 10px 12px 18px;
+    border-bottom: 1px solid var(--rc-line);
+    min-height: 62px;
+}
+
+.rc-details__head strong { font-size: 15px; }
+
+.rc-details__label {
+    padding: 14px 18px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--rc-muted);
+}
+
+.rc-details__list { flex: 1; overflow-y: auto; padding-bottom: 10px; }
+
+.rc-details__foot { padding: 12px 18px; border-top: 1px solid var(--rc-line); }
+.rc-details__foot .rc-button { width: 100%; }
+
+.rc-person--flat { cursor: default; }
+.rc-person--flat:hover { background: var(--rc-hover); }
+
+/* Narrow: the panel slides over the room rather than disappearing. Who is in
+   a conversation is not a detail people stop needing on a smaller screen. */
+@media (max-width: 1100px) {
+    .rc-details {
+        position: absolute;
+        inset: 0 0 0 auto;
+        z-index: 5;
+        box-shadow: -14px 0 34px rgb(17 27 46 / 12%);
+    }
+}
+
+.rc-person--already { opacity: .55; cursor: default; }
+.rc-person--already:hover { background: none; }
+.rc-person__already { font-size: 11.5px; color: var(--rc-muted); flex: none; }
+
+/* A refusal is part of the call card, not a line hidden behind it. */
+.rc-call__error {
+    margin: 10px 0 0;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: #ffffff1f;
+    font-size: 12.5px;
+    line-height: 1.45;
+}

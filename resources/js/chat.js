@@ -29,19 +29,31 @@ const OPEN_KEY = 'revun.chat.open';
 let client = null;
 const channels = new Map();
 
-function csrf() {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+/**
+ * Proving the request came from the page and not from another site.
+ *
+ * Both forms, because three portals lay their pages out three ways: the meta
+ * tag when the layout renders one, and Laravel's own XSRF-TOKEN cookie when it
+ * does not — this portal's layout does not, and the package cannot make every
+ * portal add one before chat will post anything.
+ */
+export function headers() {
+    const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    const cookie = document.cookie.split('; ').find((pair) => pair.startsWith('XSRF-TOKEN='));
+
+    return {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(meta ? { 'X-CSRF-TOKEN': meta } : {}),
+        ...(cookie ? { 'X-XSRF-TOKEN': decodeURIComponent(cookie.slice('XSRF-TOKEN='.length)) } : {}),
+    };
 }
 
 async function ask(url, options = {}) {
     const response = await fetch(url, {
         credentials: 'same-origin',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrf(),
-            'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: headers(),
         ...options,
     });
 
@@ -68,7 +80,12 @@ export function registerChat(Alpine) {
             .filter(Boolean);
 
         const others = members.filter((user) => user.id !== me);
-        const last = channel.state?.messages?.[channel.state.messages.length - 1];
+
+        /* A deleted message is not the last thing anybody said, so it is not
+           the preview either — otherwise a conversation reads "This message
+           was deleted" long after that stopped being the news. */
+        const said = (channel.state?.messages ?? []).filter((message) => message.type !== 'deleted');
+        const last = said[said.length - 1];
         const unread = channel.countUnread?.() ?? 0;
 
         return {
@@ -79,6 +96,20 @@ export function registerChat(Alpine) {
             title: channel.data?.name || others.map((user) => user.name || user.id).join(', ') || 'Empty conversation',
             image: channel.data?.image ?? (others.length === 1 ? (others[0].image ?? null) : null),
             members: members.length,
+            /* Who they are, not how many. A channel that says "2 members" and
+               cannot say which two is telling somebody to go and ask. */
+            people: members
+                .map((user) => ({
+                    id: user.id,
+                    name: user.name || user.id,
+                    image: user.image ?? null,
+                    email: user.email ?? null,
+                    online: !!user.online,
+                    you: user.id === me,
+                }))
+                .sort((a, b) => (a.you === b.you ? a.name.localeCompare(b.name) : a.you ? 1 : -1)),
+            /* Everybody but the caller: who a call has to ring. */
+            memberIds: others.map((user) => user.id),
             online: others.some((user) => user.online),
             other: others[0]?.name ?? null,
             email: others.length === 1 ? (others[0].email ?? null) : null,
@@ -115,6 +146,10 @@ export function registerChat(Alpine) {
         me: null,
         abilities: {},
 
+        /** The one connection attempt, and the session it was made with. */
+        connecting: null,
+        session: null,
+
         /** Plain snapshots, newest first. */
         conversations: [],
         unread: 0,
@@ -128,36 +163,62 @@ export function registerChat(Alpine) {
         /** What the page is showing. */
         active: null,
 
-        async connect() {
-            if (client || this.failed) return;
+        /**
+         * Connecting, once.
+         *
+         * The dock and the page both ask for it — the dock is in the layout and
+         * the page is on the page — and the guard has to hold from the first
+         * call, not from the first answer. Checking a client that only exists
+         * after the round trip lets both through, and then the same person
+         * connects twice and every request is made twice.
+         */
+        connect() {
+            this.connecting ??= this.begin().catch((error) => {
+                this.failed = error.message ?? 'Chat could not start.';
+            });
 
-            try {
-                const session = await ask(ENDPOINTS.token, { method: 'POST' });
+            return this.connecting;
+        },
 
-                client = StreamChat.getInstance(session.api_key);
-                this.me = session.user_id;
+        async begin() {
+            const session = await ask(ENDPOINTS.token, { method: 'POST' });
 
-                await client.connectUser(session.user, session.token);
+            /* Kept so the call client does not go and ask for a second one. */
+            this.session = session;
 
-                this.abilities = await ask(ENDPOINTS.abilities);
+            client = StreamChat.getInstance(session.api_key);
+            this.me = session.user_id;
 
-                const list = await client.queryChannels(
+            await client.connectUser(session.user, session.token);
+
+            /* What somebody may do and what they are already in are two
+               different questions; asking them one after the other adds a
+               round trip to a screen that is still saying "Connecting". */
+            const [abilities, list] = await Promise.all([
+                ask(ENDPOINTS.abilities),
+                client.queryChannels(
                     { members: { $in: [this.me] } },
                     [{ last_message_at: -1 }],
                     { watch: true, state: true, limit: 30, message_limit: 40 },
-                );
+                ),
+            ]);
 
-                list.forEach((channel) => this.hold(channel));
+            this.abilities = abilities;
 
-                this.refresh();
-                this.listen();
+            list.forEach((channel) => this.hold(channel));
 
-                this.ready = true;
-                this.active ??= this.conversations[0]?.cid ?? null;
-                this.restoreOpen();
-            } catch (error) {
-                this.failed = error.message ?? 'Chat could not start.';
-            }
+            this.refresh();
+            this.listen();
+
+            this.ready = true;
+            this.active ??= this.conversations[0]?.cid ?? null;
+            this.restoreOpen();
+
+            /* Build the call client now, while nobody is waiting. Doing it on
+               the first press of the call button puts a vendor handshake
+               between somebody deciding to call and anything happening — long
+               enough that they press the button again. */
+            Alpine.store('calls')?.ready?.().catch(() => {});
         },
 
         /** Keep the real channel here, out of anything reactive. */
@@ -518,6 +579,10 @@ export function registerChat(Alpine) {
         search: '',
         unreadOnly: false,
         picking: false,
+        /** The side panel that says who is in the conversation. */
+        details: false,
+        /** Folded sections of the rail, as every chat application has. */
+        folded: { channels: false, direct: false },
         people: {},
         chosen: [],
         form: { name: '', type: 'team' },
@@ -578,9 +643,18 @@ export function registerChat(Alpine) {
         },
 
         toggle(id) {
+            if (this.already(id)) return;
+
             this.chosen = this.chosen.includes(id)
                 ? this.chosen.filter((chosen) => chosen !== id)
                 : [...this.chosen, id];
+        },
+
+        /** Already in the conversation being added to — offering them again
+            is offering something that does nothing. */
+        already(id) {
+            return this.picking === 'members'
+                && !!this.current?.people.some((person) => person.id === id);
         },
 
         async messagePerson(id) {

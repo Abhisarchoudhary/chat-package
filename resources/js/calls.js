@@ -1,5 +1,7 @@
 import { StreamVideoClient } from '@stream-io/video-client';
 
+import { headers } from './chat.js';
+
 /**
  * Audio calls, from the same conversation people are already in.
  *
@@ -19,13 +21,10 @@ import { StreamVideoClient } from '@stream-io/video-client';
 
 const CALLS_ENDPOINT = '/chat/calls';
 
-function csrf() {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-}
-
 export function registerCalls(Alpine) {
     Alpine.store('calls', {
         client: null,
+        building: null,
         call: null,
 
         /** ringing-out | ringing-in | live | null */
@@ -37,29 +36,45 @@ export function registerCalls(Alpine) {
         error: null,
         ticker: null,
 
-        /** The video client shares chat's token: the same person, one identity. */
-        async ready() {
-            if (this.client) return this.client;
+        /**
+         * The video client shares chat's token: the same person, one identity.
+         *
+         * Built once and remembered — including while it is still being built,
+         * so two presses of the call button do not open two clients. Chat calls
+         * this as soon as it connects, so by the time anybody presses call the
+         * handshake has already happened.
+         */
+        ready() {
+            this.building ??= (async () => {
+                /* Chat has already been given one; the same person does not
+                   need a second token to make a call. */
+                const session = Alpine.store('chat')?.session ?? await fetch('/chat/token', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: headers(),
+                }).then((response) => {
+                    if (!response.ok) throw new Error('no token');
 
-            const chat = Alpine.store('chat');
+                    return response.json();
+                });
 
-            if (!chat.ready) return null;
+                this.client = new StreamVideoClient({
+                    apiKey: session.api_key,
+                    user: session.user,
+                    token: session.token,
+                });
 
-            const session = await fetch('/chat/token', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-            }).then((response) => response.json());
+                this.listen();
 
-            this.client = new StreamVideoClient({
-                apiKey: session.api_key,
-                user: session.user,
-                token: session.token,
+                return this.client;
+            })().catch((error) => {
+                // Let the next attempt try again rather than failing for good.
+                this.building = null;
+
+                throw error;
             });
 
-            this.listen();
-
-            return this.client;
+            return this.building;
         },
 
         listen() {
@@ -80,20 +95,31 @@ export function registerCalls(Alpine) {
             this.client.on('call.ended', () => this.reset());
         },
 
+        /**
+         * Pressing call.
+         *
+         * The card goes up on the same tick as the press — before the token,
+         * the server and the vendor have said anything. A button that looks
+         * dead for two seconds gets pressed again, and then there are two
+         * calls; showing "Calling…" immediately is what stops that.
+         */
         async start(cid, members, title) {
+            if (this.state) return;
+
             this.error = null;
+            this.title = title || 'Call';
+            this.state = 'ringing-out';
 
             try {
                 const client = await this.ready();
 
-                if (!client) return;
-
                 const answer = await fetch(CALLS_ENDPOINT, {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-                    body: JSON.stringify({ cid, members }),
+                    headers: headers(),
+                    body: JSON.stringify({ cid, members: members ?? [] }),
                 }).then((response) => {
+                    if (response.status === 403) throw new Error('not-allowed');
                     if (!response.ok) throw new Error('refused');
 
                     return response.json();
@@ -102,8 +128,6 @@ export function registerCalls(Alpine) {
                 const call = client.call(answer.call_type, answer.call_id);
 
                 this.call = call;
-                this.title = title;
-                this.state = 'ringing-out';
 
                 await call.getOrCreate({
                     ring: true,
@@ -112,7 +136,14 @@ export function registerCalls(Alpine) {
 
                 await this.join(answer.recording);
             } catch (error) {
-                this.error = 'That call could not be started.';
+                /* The card says one sentence; the console says which one of a
+                   token, a permission, a network and a vendor it was. */
+                console.error('[chat] the call did not start', error);
+
+                this.error = error.message === 'not-allowed'
+                    ? 'You do not have permission to start calls.'
+                    : 'That call could not be started.';
+
                 this.reset();
             }
         },
@@ -137,9 +168,22 @@ export function registerCalls(Alpine) {
 
         async join(record) {
             // Audio only: the camera is never turned on, rather than turned off.
-            await this.call.camera.disable();
+            await this.call.camera.disable().catch(() => {});
             await this.call.join();
-            await this.call.microphone.enable();
+
+            /*
+             * A refused microphone is not a refused call. Somebody on a machine
+             * without one, or who said no to the browser, should still hear
+             * what is being said — and be told plainly that nobody can hear
+             * them, rather than watch the call die with "could not be started".
+             */
+            try {
+                await this.call.microphone.enable();
+                this.muted = false;
+            } catch (error) {
+                this.muted = true;
+                this.error = 'No microphone — you can hear them, they cannot hear you.';
+            }
 
             this.state = 'live';
             this.count();

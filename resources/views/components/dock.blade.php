@@ -28,7 +28,7 @@
                         type="button"
                         class="rc-icon-button rc-icon-button--dark"
                         title="{{ __('Start a call') }}"
-                        @click.stop="$store.calls.start(cid, [], $store.chat.find(cid)?.title)"
+                        @click.stop="$store.calls.start(cid, $store.chat.find(cid)?.memberIds ?? [], $store.chat.find(cid)?.title)"
                     >
                         <x-chat::icon name="phone" size="16" />
                     </button>

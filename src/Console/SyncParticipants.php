@@ -37,7 +37,7 @@ final class SyncParticipants extends Command
         $synced = 0;
 
         foreach ($directory->all() as $person) {
-            $users->sync($person);
+            $users->sync($person, force: true);
             $synced++;
 
             if ($limit > 0 && $synced >= $limit) {

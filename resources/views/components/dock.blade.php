@@ -15,8 +15,13 @@
     beside it.
 --}}
 <div class="rc-chat" x-data="chatDock()" x-cloak>
+{{-- The call card rings everywhere, including on the chat page. --}}
 <x-chat::call />
-<div class="rc-dock">
+
+{{-- The launcher and the boxes are for the rest of the portal: on the chat
+     page they would be a small window of a conversation standing in front of
+     the large one already showing it. --}}
+<div class="rc-dock" x-show="! onPage">
     <template x-for="cid in boxes" :key="cid">
         <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded">

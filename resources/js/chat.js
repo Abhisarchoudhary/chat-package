@@ -64,6 +64,16 @@ async function ask(url, options = {}) {
     return response.json();
 }
 
+/**
+ * Whether the full chat interface is on screen.
+ *
+ * The dock is for the rest of the portal. On the chat page it would be a
+ * small window of a conversation next to the large one already showing it.
+ */
+function onChatPage() {
+    return !!document.querySelector('.rc-page');
+}
+
 function initialsOf(name) {
     return (name || '?')
         .split(/\s+/)
@@ -160,6 +170,9 @@ export function registerChat(Alpine) {
         /** Conversations with a floating box open. */
         open: [],
 
+        /** Conversations currently drawn on screen, by cid. */
+        watching: {},
+
         /** What the page is showing. */
         active: null,
 
@@ -247,12 +260,42 @@ export function registerChat(Alpine) {
                     this.hold(channels.get(cid));
                 }
 
-                if (event.type === 'message.new' && event.user?.id !== this.me && cid && cid !== this.active) {
-                    this.openBox(cid);
+                if (event.type === 'message.new' && event.user?.id !== this.me && cid) {
+                    /*
+                     * A message that lands in a conversation somebody is
+                     * looking at has been read. Counting it unread leaves a
+                     * badge on a window they are already sitting in, and
+                     * nothing they can do clears it — it was marked read when
+                     * they opened the conversation, and they never opened it
+                     * again.
+                     */
+                    if (this.reading(cid)) {
+                        this.markRead(cid);
+                    } else if (cid !== this.active && !onChatPage()) {
+                        this.openBox(cid);
+                    }
                 }
 
                 this.refresh();
             });
+        },
+
+        /**
+         * Whether this conversation is on screen in front of somebody.
+         *
+         * On screen is not enough on its own: a conversation open in a tab
+         * nobody is looking at has not been read, and marking it read there is
+         * how a message gets missed.
+         */
+        reading(cid) {
+            return (this.watching[cid] ?? 0) > 0 && document.visibilityState === 'visible';
+        },
+
+        /** A conversation component saying it is drawing this one, or has stopped. */
+        watch(cid, on) {
+            const count = (this.watching[cid] ?? 0) + (on ? 1 : -1);
+
+            this.watching = { ...this.watching, [cid]: Math.max(0, count) };
         },
 
         /** Rebuild what the interface draws from what the client holds. */
@@ -423,8 +466,18 @@ export function registerChat(Alpine) {
         },
 
         init() {
+            /* Say we are drawing it, so a message arriving in front of
+               somebody is not counted as unread. */
+            this.$store.chat.watch(this.cid, true);
             this.$store.chat.markRead(this.cid);
             this.scroll();
+
+            /* Coming back to the tab is reading it too. */
+            this.onVisible = () => {
+                if (document.visibilityState === 'visible') this.$store.chat.markRead(this.cid);
+            };
+
+            document.addEventListener('visibilitychange', this.onVisible);
 
             /* Somebody typing is worth showing and not worth storing. */
             const channel = this.$store.chat.raw(this.cid);
@@ -444,6 +497,11 @@ export function registerChat(Alpine) {
             });
         },
 
+        destroy() {
+            this.$store.chat.watch(this.cid, false);
+            document.removeEventListener('visibilitychange', this.onVisible);
+        },
+
         async send() {
             const text = this.text.trim();
 
@@ -458,6 +516,11 @@ export function registerChat(Alpine) {
 
             try {
                 await this.$store.chat.send(this.cid, text);
+
+                /* Answering is reading. Leaving a badge on a conversation
+                   somebody just replied in is telling them about their own
+                   message. */
+                this.$store.chat.markRead(this.cid);
                 this.scroll();
             } catch (error) {
                 this.error = 'That message did not send.';
@@ -558,8 +621,22 @@ export function registerChat(Alpine) {
         panel: false,
         search: '',
 
+        /** The chat page is showing, so the launcher and the boxes stand down. */
+        onPage: false,
+
         init() {
             this.$store.chat.connect();
+
+            const look = () => {
+                this.onPage = onChatPage();
+
+                if (this.onPage) this.panel = false;
+            };
+
+            look();
+
+            /* The dock survives a page change, so it has to notice one. */
+            document.addEventListener('livewire:navigated', look);
         },
 
         get conversations() {

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Revun\Chat\Http\Controllers\CallController;
 use Revun\Chat\Http\Controllers\ChatController;
 use Revun\Chat\Http\Controllers\TokenController;
+use Revun\Chat\Http\Controllers\TranscriptionResultController;
 use Revun\Chat\Http\Controllers\WebhookController;
 
 Route::middleware(config('chat.routes.middleware', ['web', 'auth']))
@@ -41,3 +42,13 @@ if (filled(config('chat.routes.webhook_secret'))) {
         WebhookController::class,
     )->middleware('throttle:600,1')->name('chat.webhook');
 }
+
+/*
+ * The transcription worker answering with the words of a chat call. Its own
+ * address rather than the phone calls' one: both can be number seven, and a
+ * shared endpoint would write one conversation's words onto another's.
+ */
+Route::post(
+    trim((string) config('chat.routes.prefix', 'chat'), '/').'/transcription/result',
+    TranscriptionResultController::class,
+)->middleware('throttle:120,1')->name('chat.transcript');

@@ -133,6 +133,115 @@ php artisan chat:sync --limit=5  # a first look before letting it loose
 
 ---
 
+## Adding the other two portals
+
+Nothing new is created for a portal — no second Stream application, no second
+directory. It installs the package, answers who its people are, and its users
+appear in the same address book as Royal York's.
+
+**1. Install it.**
+
+```jsonc
+// composer.json
+"repositories": [
+    { "type": "vcs", "url": "git@github.com:Abhisarchoudhary/chat-package.git" }
+]
+```
+
+```bash
+composer require revun/chat
+```
+
+**2. The same three Stream values, and its own name.**
+
+```bash
+STREAM_KEY=            # identical in all three portals
+STREAM_SECRET=         # identical
+STREAM_APP_ID=         # identical
+CHAT_ORGANISATION=otr  # or crp — this is the only line that differs
+CHAT_ARCHIVE=false     # Royal York keeps the record; nobody else writes to it
+```
+
+**3. Say who may chat.** This is the only code a portal writes, because the
+three do not agree on where their people live — MSR has its staff, the
+recruitment portal has recruiters and must keep applicants out.
+
+```php
+// app/Chat/Employees.php
+final class Employees implements ParticipantDirectory
+{
+    public function current(): ?ChatParticipant
+    {
+        $user = auth()->user();
+
+        return $user?->is_active && $user->canChat() ? $user : null;   // your rule
+    }
+
+    public function may(string $ability): bool
+    {
+        // create-channel, manage-channels, call, read-archive,
+        // play-recording, purge — answered in this portal's permissions.
+        return $this->current() !== null && $ability !== 'purge';
+    }
+
+    public function all(): iterable
+    {
+        return Staff::query()->active()->cursor();
+    }
+
+    public function find(string $streamId): ?ChatParticipant
+    {
+        return Staff::query()->get()->first(fn ($s) => Identity::forEmail($s->email) === $streamId);
+    }
+}
+```
+
+```php
+// config/chat.php (published), or a service provider
+'directory' => App\Chat\Employees::class,
+```
+
+**4. The model implements `ChatParticipant`** — `use TalksInChat` answers most
+of it from what a Laravel user already has; override `chatDepartment()` and
+anything that portal keeps elsewhere.
+
+**5. Mount the interface.**
+
+```blade
+{{-- the layout, so a conversation follows people across the portal --}}
+<x-chat::dock />
+
+{{-- a page of its own --}}
+<x-chat::page />
+```
+
+```js
+// resources/js/app.js
+import { registerChat } from '../../vendor/revun/chat/resources/js/chat';
+import { registerCalls } from '../../vendor/revun/chat/resources/js/calls';
+
+document.addEventListener('alpine:init', () => {
+    registerChat(window.Alpine);
+    registerCalls(window.Alpine);
+});
+```
+
+```css
+/* resources/css/app.css */
+@import '../../vendor/revun/chat/resources/css/chat.css';
+```
+
+```bash
+npm install stream-chat @stream-io/video-client
+php artisan chat:sync --limit=5     # a first look, then without the limit
+```
+
+**What that portal does not get, on purpose:** the archive and the webhook.
+Both belong to the one portal that keeps the record, and three writers would be
+three archives that disagree about the same conversation.
+
+---
+
 ## The archive
 
 One portal keeps the record: `CHAT_ARCHIVE=true` there and nowhere else, because

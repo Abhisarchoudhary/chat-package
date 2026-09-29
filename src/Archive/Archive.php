@@ -3,6 +3,7 @@
 namespace Revun\Chat\Archive;
 
 use Carbon\CarbonImmutable;
+use Revun\Chat\Jobs\KeepCallRecording;
 
 /**
  * Writing down what happened, so the record outlives the vendor's retention.
@@ -41,6 +42,9 @@ final class Archive
             'channel.deleted' => $this->channelDeleted($event),
             'member.added', 'member.updated' => $this->member($event),
             'member.removed' => $this->memberLeft($event),
+            'call.session_started' => $this->callStarted($event),
+            'call.session_ended' => $this->callEnded($event),
+            'call.recording_ready' => $this->recordingReady($event),
             default => null,
         };
     }
@@ -197,6 +201,73 @@ final class Archive
             'created_by' => $channel['created_by']['id'] ?? ($channel['created_by_id'] ?? null),
             'created_at' => $this->moment($channel['created_at'] ?? null),
         ], static fn ($value) => $value !== null && $value !== ''));
+    }
+
+    /**
+     * A call that has begun.
+     *
+     * The row usually exists already — the portal made it when somebody
+     * pressed call — but a call started another way should still be recorded
+     * rather than appearing from nowhere when its recording arrives.
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private function callStarted(array $event): void
+    {
+        $cid = (string) ($event['call_cid'] ?? '');
+
+        if ($cid === '') {
+            return;
+        }
+
+        ChatCall::query()->updateOrCreate(['call_cid' => $cid], array_filter([
+            'started_at' => $this->moment($event['created_at'] ?? null) ?? CarbonImmutable::now(),
+            'app' => (string) config('chat.archive.app'),
+        ], static fn ($value) => $value !== null));
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function callEnded(array $event): void
+    {
+        $call = ChatCall::query()->where('call_cid', (string) ($event['call_cid'] ?? ''))->first();
+
+        if ($call === null) {
+            return;
+        }
+
+        $ended = $this->moment($event['created_at'] ?? null) ?? CarbonImmutable::now();
+
+        $call->forceFill([
+            'ended_at' => $ended,
+            'duration_seconds' => $call->started_at === null
+                ? 0
+                : (int) max(0, $ended->diffInSeconds($call->started_at, absolute: true)),
+        ])->save();
+    }
+
+    /**
+     * Stream has finished making the recording.
+     *
+     * The url it sends is temporary, which is the whole reason this is queued
+     * rather than noted: a link that expires is not a record, and the file has
+     * to be in our own bucket before it does.
+     *
+     * @param  array<string, mixed>  $event
+     */
+    private function recordingReady(array $event): void
+    {
+        $call = ChatCall::query()->where('call_cid', (string) ($event['call_cid'] ?? ''))->first();
+        $url = (string) ($event['call_recording']['url'] ?? $event['url'] ?? '');
+
+        if ($call === null || $url === '') {
+            return;
+        }
+
+        $call->forceFill(['recording_url' => $url])->save();
+
+        KeepCallRecording::dispatch($call->id);
     }
 
     private function moment(mixed $value): ?CarbonImmutable

@@ -142,6 +142,13 @@ export function registerChat(Alpine) {
 
             this.channels = channels;
             this.countUnread();
+
+            /*
+             * The page opens on the most recent conversation. An empty room on
+             * a page whose whole job is conversations makes somebody click
+             * twice to see what they came for.
+             */
+            this.active ??= channels[0]?.cid ?? null;
         },
 
         listen() {
@@ -351,6 +358,10 @@ export function registerChat(Alpine) {
             this.sending = true;
             this.text = '';
 
+            const field = this.$el.querySelector('textarea');
+
+            if (field) field.style.height = 'auto';
+
             try {
                 await this.channel.sendMessage({ text });
             } catch (error) {
@@ -415,10 +426,52 @@ export function registerChat(Alpine) {
             return message.user?.id === this.$store.chat.me;
         },
 
-        when(message) {
-            const at = new Date(message.created_at);
+        at(message) {
+            return new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        },
 
-            return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        /**
+         * Whether this message starts a new run.
+         *
+         * A run is one person talking without interruption for a few minutes,
+         * and it gets one avatar and one name. Repeating them on every line
+         * says the same thing nine times and makes a conversation look like a
+         * log file.
+         */
+        startsRun(index) {
+            const message = this.messages[index];
+            const before = this.messages[index - 1];
+
+            if (!before || before.user?.id !== message.user?.id) return true;
+            if (this.opensDay(index)) return true;
+
+            const gap = new Date(message.created_at) - new Date(before.created_at);
+
+            return gap > 5 * 60 * 1000;
+        },
+
+        /** The first message of a day, which gets the date drawn above it. */
+        opensDay(index) {
+            const day = (message) => new Date(message.created_at).toDateString();
+
+            return index === 0 || day(this.messages[index]) !== day(this.messages[index - 1]);
+        },
+
+        dayOf(message) {
+            const at = new Date(message.created_at);
+            const today = new Date();
+            const yesterday = new Date(Date.now() - 86400000);
+
+            if (at.toDateString() === today.toDateString()) return 'Today';
+            if (at.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+            return at.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+        },
+
+        /** The box grows with what is being written, up to a point. */
+        grow(field) {
+            field.style.height = 'auto';
+            field.style.height = `${Math.min(field.scrollHeight, 160)}px`;
         },
 
         /** A new message should not leave somebody reading yesterday's. */
@@ -477,6 +530,7 @@ export function registerChat(Alpine) {
 
         init() {
             this.$store.chat.connect();
+
         },
 
         get conversations() {
@@ -494,6 +548,47 @@ export function registerChat(Alpine) {
         open(cid) {
             this.$store.chat.active = cid;
             this.$store.chat.markRead(cid);
+        },
+
+        /** Channels and people, in the two groups a rail is read in. */
+        get grouped() {
+            const conversations = this.conversations;
+
+            return {
+                channels: conversations.filter((channel) => channel.type === 'team'),
+                direct: conversations.filter((channel) => channel.type !== 'team'),
+            };
+        },
+
+        /** The line under the name in the header: members, or the other person. */
+        headline(channel) {
+            if (channel.type === 'team') {
+                const members = Object.keys(channel.state?.members ?? {}).length;
+
+                return `${members} ${members === 1 ? 'member' : 'members'}`;
+            }
+
+            const other = this.others(channel)[0];
+
+            return other ? (other.online ? 'Online' : (other.email ?? '')) : '';
+        },
+
+        /** The last thing said, for the rail. */
+        preview(channel) {
+            const last = channel.state?.messages?.[channel.state.messages.length - 1];
+
+            if (!last) return 'No messages yet';
+
+            const who = last.user?.id === this.$store.chat.me ? 'You: ' : '';
+
+            return who + (last.text || (last.attachments?.length ? 'Sent a file' : ''));
+        },
+
+        /** Who else is in a direct message, for the line under the name. */
+        others(channel) {
+            return Object.values(channel.state?.members ?? {})
+                .map((member) => member.user)
+                .filter((user) => user && user.id !== this.$store.chat.me);
         },
 
         async loadPeople(search = '') {

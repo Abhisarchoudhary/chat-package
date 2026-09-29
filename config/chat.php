@@ -135,6 +135,51 @@ return [
 
     'calls' => [
         'record' => (bool) env('CHAT_RECORD_CALLS', true),
+
+        /*
+         * Where a finished recording is kept.
+         *
+         * Stream holds it for a while and then does not; a call worth recording
+         * is worth keeping, so it is copied into our own bucket under this
+         * portal's prefix — beside the phone recordings, and apart from every
+         * other application writing to the same bucket.
+         */
+        'disk' => env('CHAT_RECORDINGS_DISK', 's3'),
+
+        'prefix' => trim((string) env('CHAT_RECORDINGS_PREFIX', 'royalyork/chat-calls'), '/'),
+
+        /*
+         * And the words read off it, the same way the phone calls are read.
+         *
+         * `worker` hands the bucket key to our own transcription service, which
+         * answers later with speakers and times; `openai` sends the audio to
+         * the paid endpoint and answers in the same request. Either way the
+         * transcript lands on `chat_calls` and is read behind the same
+         * permission as hearing the recording.
+         */
+        'transcription' => [
+            'enabled' => (bool) env('CHAT_TRANSCRIPTION_ENABLED', false),
+
+            'driver' => env('CHAT_TRANSCRIPTION_DRIVER', env('CALL_TRANSCRIPTION_DRIVER', 'worker')),
+
+            'max_megabytes' => (int) env('CHAT_TRANSCRIPTION_MAX_MB', 24),
+
+            'summarise' => (bool) env('CHAT_TRANSCRIPTION_SUMMARISE', true),
+
+            /*
+             * The same worker the phone recordings go to, with its own return
+             * address: a chat call and a phone call can both be number seven,
+             * and one webhook answering for both would write the wrong words on
+             * the wrong conversation.
+             */
+            'worker' => [
+                'url' => env('TRANSCRIPTION_WORKER_URL'),
+                'key' => env('TRANSCRIPTION_WORKER_KEY'),
+                'secret' => env('TRANSCRIPTION_WEBHOOK_SECRET'),
+                'timeout' => (int) env('TRANSCRIPTION_WORKER_TIMEOUT', 20),
+                'retry_after_hours' => (int) env('TRANSCRIPTION_WORKER_RETRY_HOURS', 6),
+            ],
+        ],
     ],
 
     /*

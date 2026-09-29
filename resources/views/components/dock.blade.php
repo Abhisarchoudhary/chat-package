@@ -6,49 +6,51 @@
 
     It lives in the layout rather than on the chat page, because the point of it
     is answering somebody while doing something else. Boxes survive a page
-    change (sessionStorage), which is what makes it feel like one application
-    instead of a page that has to be gone back to.
+    change, which is what makes it one application instead of a page to go back
+    to.
 --}}
 <div class="rc-dock" x-data="chatDock()" x-cloak>
-    {{-- Open conversations, newest on the right, nearest the launcher. --}}
     <template x-for="cid in boxes" :key="cid">
         <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded">
-                <span class="rc-avatar rc-avatar--sm" style="background: #ffffff1f">
-                    <template x-if="$store.chat.image($store.chat.channelFor(cid))">
-                        <img :src="$store.chat.image($store.chat.channelFor(cid))" alt="">
-                    </template>
-                    <template x-if="! $store.chat.image($store.chat.channelFor(cid))">
-                        <span x-text="$store.chat.initials($store.chat.title($store.chat.channelFor(cid)))"></span>
-                    </template>
+                <span class="rc-avatar rc-avatar--sm">
+                    <template x-if="$store.chat.find(cid)?.image"><img :src="$store.chat.find(cid).image" alt=""></template>
+                    <template x-if="! $store.chat.find(cid)?.image"><span x-text="$store.chat.initials($store.chat.find(cid)?.title)"></span></template>
                 </span>
 
                 <span class="rc-box__title">
-                    <strong x-text="$store.chat.title($store.chat.channelFor(cid))"></strong>
-                    <span x-text="$store.chat.channelFor(cid)?.type === 'team' ? '{{ __('Channel') }}' : '{{ __('Direct message') }}'"></span>
+                    <strong x-text="$store.chat.find(cid)?.title"></strong>
+                    <span x-text="$store.chat.subtitle($store.chat.find(cid))"></span>
                 </span>
 
                 <template x-if="$store.chat.abilities['call']">
                     <button
                         type="button"
-                        class="rc-box__action"
-                        title="{{ __('Call') }}"
-                        @click.stop="$store.calls.start(cid, Object.keys($store.chat.channelFor(cid).state?.members ?? {}), $store.chat.title($store.chat.channelFor(cid)))"
-                    >☎</button>
+                        class="rc-icon-button rc-icon-button--dark"
+                        title="{{ __('Start a call') }}"
+                        @click.stop="$store.calls.start(cid, [], $store.chat.find(cid)?.title)"
+                    >
+                        <x-chat::icon name="phone" size="16" />
+                    </button>
                 </template>
 
-                <button type="button" class="rc-box__action" @click.stop="folded = ! folded" x-text="folded ? '▴' : '▾'"></button>
-                <button type="button" class="rc-box__action" @click.stop="$store.chat.closeBox(cid)">✕</button>
+                <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="folded = ! folded" :title="folded ? '{{ __('Open') }}' : '{{ __('Minimise') }}'">
+                    <template x-if="folded"><x-chat::icon name="chevron-up" size="16" /></template>
+                    <template x-if="! folded"><x-chat::icon name="minimise" size="16" /></template>
+                </button>
+
+                <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">
+                    <x-chat::icon name="close" size="16" />
+                </button>
             </div>
 
             <template x-if="! folded">
-                <x-chat::conversation :compact="true" for="cid" />
+                <x-chat::conversation for="cid" />
             </template>
         </div>
     </template>
 
     <div style="position: relative">
-        {{-- The list of conversations, above the launcher. --}}
         <div class="rc-panel" x-show="panel" x-transition.opacity @click.outside="panel = false">
             <div class="rc-panel__head">
                 <span>{{ __('Chats') }}</span>
@@ -56,35 +58,39 @@
             </div>
 
             <div class="rc-panel__search">
-                <input type="search" class="rc-search" x-model="search" placeholder="{{ __('Search conversations') }}">
+                <label class="rc-search">
+                    <x-chat::icon name="search" size="16" />
+                    <input type="search" x-model="search" placeholder="{{ __('Search') }}">
+                </label>
             </div>
 
             <div class="rc-panel__list">
-                <template x-for="channel in conversations" :key="channel.cid">
+                <template x-for="conversation in conversations" :key="conversation.cid">
                     <button
                         type="button"
                         class="rc-row"
-                        :class="channel.countUnread() > 0 && 'rc-row--unread'"
-                        @click="$store.chat.openBox(channel.cid); panel = false"
+                        :class="conversation.unread > 0 && 'rc-row--unread'"
+                        @click="$store.chat.openBox(conversation.cid); panel = false"
                     >
-                        <template x-if="channel.type === 'team'">
-                            <span class="rc-hash">#</span>
+                        <template x-if="conversation.type === 'team'">
+                            <span class="rc-row__icon"><x-chat::icon name="hash" size="16" /></span>
                         </template>
 
-                        <template x-if="channel.type !== 'team'">
+                        <template x-if="conversation.type !== 'team'">
                             <span class="rc-avatar rc-avatar--sm">
-                                <template x-if="$store.chat.image(channel)"><img :src="$store.chat.image(channel)" alt=""></template>
-                                <template x-if="! $store.chat.image(channel)"><span x-text="$store.chat.initials($store.chat.title(channel))"></span></template>
+                                <template x-if="conversation.image"><img :src="conversation.image" alt=""></template>
+                                <template x-if="! conversation.image"><span x-text="$store.chat.initials(conversation.title)"></span></template>
+                                <template x-if="conversation.online"><span class="rc-dot"></span></template>
                             </span>
                         </template>
 
                         <span class="rc-row__body">
-                            <span class="rc-row__title" x-text="$store.chat.title(channel)"></span>
-                            <span class="rc-row__preview" x-text="preview(channel)"></span>
+                            <span class="rc-row__title" x-text="conversation.title"></span>
+                            <span class="rc-row__preview" x-text="conversation.preview"></span>
                         </span>
 
-                        <template x-if="channel.countUnread() > 0">
-                            <span class="rc-pill" x-text="channel.countUnread()"></span>
+                        <template x-if="conversation.unread > 0">
+                            <span class="rc-pill" x-text="conversation.unread"></span>
                         </template>
                     </button>
                 </template>
@@ -103,6 +109,7 @@
         </div>
 
         <button type="button" class="rc-launcher" @click="panel = ! panel" data-test="chat-launcher">
+            <x-chat::icon name="message" size="17" />
             <span>{{ __('Chat') }}</span>
             <template x-if="$store.chat.unread > 0">
                 <span class="rc-badge" x-text="$store.chat.unread"></span>

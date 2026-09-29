@@ -1,87 +1,72 @@
-@props(['for' => '$store.chat.active', 'compact' => false])
+@props(['for' => '$store.chat.active'])
 
 {{--
-    One conversation, wherever it is being read: the page's room and the dock's
-    floating box render this same component, because the day they stop doing
-    that is the day a message looks different depending on where you saw it.
+    One conversation, wherever it is read: the page's room and the dock's
+    floating box render this, so a message cannot start looking different
+    depending on where somebody saw it.
 
     `for` is an Alpine expression, not a value — inside an x-for it is the loop
-    variable, on the page it is the active conversation. Quoting it would pass
-    the word rather than the channel.
-
-    Messages are grouped the way Slack groups them: one avatar and name for a
-    run of messages from the same person, the rest indented with the time on
-    hover. Reading a conversation is reading who said what, and repeating a
-    name nine times says nothing nine times.
+    variable. Quoting it would pass the word rather than the conversation.
 --}}
 <div
     x-data="chatConversation(() => ({{ $for }}))"
     data-max-mb="{{ config('chat.files.max_megabytes', 25) }}"
-    class="rc-conversation"
-    style="display: flex; flex-direction: column; flex: 1; min-height: 0;"
+    class="rc-talk"
 >
     <div class="rc-messages" x-ref="list">
         <template x-for="(message, index) in messages" :key="message.id">
             <div>
                 <template x-if="opensDay(index)">
-                    <div class="rc-day" x-text="dayOf(message)"></div>
+                    <div class="rc-day"><span x-text="dayOf(message)"></span></div>
                 </template>
 
                 <div :class="startsRun(index) ? 'rc-msg rc-msg--first' : 'rc-msg'">
                     <div class="rc-msg__gutter">
                         <template x-if="startsRun(index)">
                             <span class="rc-avatar">
-                                <template x-if="message.user?.image"><img :src="message.user.image" :alt="message.user.name"></template>
-                                <template x-if="! message.user?.image"><span x-text="$store.chat.initials(message.user?.name)"></span></template>
+                                <template x-if="message.userImage"><img :src="message.userImage" :alt="message.userName"></template>
+                                <template x-if="! message.userImage"><span x-text="$store.chat.initials(message.userName)"></span></template>
                             </span>
                         </template>
 
                         <template x-if="! startsRun(index)">
-                            <div class="rc-msg__time" x-text="at(message)"></div>
+                            <span class="rc-msg__time" x-text="at(message)"></span>
                         </template>
                     </div>
 
                     <div class="rc-msg__body">
                         <template x-if="startsRun(index)">
                             <div class="rc-msg__who">
-                                <span class="rc-msg__name" x-text="message.user?.name ?? '{{ __('Someone') }}'"></span>
+                                <span class="rc-msg__name" x-text="message.userName"></span>
                                 <span class="rc-msg__at" x-text="at(message)"></span>
                             </div>
                         </template>
 
-                        <template x-if="message.type === 'deleted'">
-                            <div class="rc-msg__gone">{{ __('This message was deleted') }}</div>
+                        <template x-if="message.text">
+                            <div class="rc-msg__text" x-text="message.text"></div>
                         </template>
 
-                        <template x-if="message.type !== 'deleted'">
+                        <template x-for="file in message.attachments" :key="file.url">
                             <div>
-                                <template x-if="message.text">
-                                    <div class="rc-msg__text" x-text="message.text"></div>
+                                <template x-if="file.kind === 'image'">
+                                    <a :href="file.url" target="_blank" rel="noopener"><img class="rc-shot" :src="file.url" :alt="file.title"></a>
                                 </template>
 
-                                <template x-for="attachment in (message.attachments ?? [])" :key="attachment.asset_url ?? attachment.image_url">
-                                    <div>
-                                        <template x-if="attachment.type === 'image'">
-                                            <a :href="attachment.image_url" target="_blank" rel="noopener">
-                                                <img class="rc-shot" :src="attachment.image_url" :alt="attachment.fallback ?? 'Image'">
-                                            </a>
-                                        </template>
-                                        <template x-if="attachment.type !== 'image'">
-                                            <a class="rc-file" :href="attachment.asset_url" target="_blank" rel="noopener">
-                                                <span>📄</span>
-                                                <span x-text="attachment.title ?? '{{ __('File') }}'"></span>
-                                            </a>
-                                        </template>
-                                    </div>
+                                <template x-if="file.kind !== 'image'">
+                                    <a class="rc-file" :href="file.url" target="_blank" rel="noopener">
+                                        <x-chat::icon name="file" size="16" />
+                                        <span x-text="file.title"></span>
+                                    </a>
                                 </template>
                             </div>
                         </template>
                     </div>
 
-                    {{-- Only what this person may actually do to this message. --}}
-                    <template x-if="mine(message) && message.type !== 'deleted'">
+                    <template x-if="message.mine">
                         <div class="rc-msg__tools">
-                            <button type="button" class="rc-msg__tool" @click="remove(message)" title="{{ __('Delete') }}">🗑</button>
+                            <button type="button" class="rc-icon-button rc-icon-button--sm" @click="remove(message)" title="{{ __('Delete') }}">
+                                <x-chat::icon name="trash" size="15" />
+                            </button>
                         </div>
                     </template>
                 </div>
@@ -91,7 +76,8 @@
         <template x-if="messages.length === 0">
             <div class="rc-empty">
                 <div>
-                    <strong>{{ __('Nothing said yet') }}</strong>
+                    <x-chat::icon name="message" size="26" />
+                    <strong>{{ __('No messages yet') }}</strong>
                     {{ __('Say something — they will see it straight away.') }}
                 </div>
             </div>
@@ -107,6 +93,7 @@
     <form class="rc-composer" @submit.prevent="send()">
         <div class="rc-composer__box">
             <textarea
+                x-ref="field"
                 x-model="text"
                 rows="1"
                 placeholder="{{ __('Write a message…') }}"
@@ -115,8 +102,8 @@
             ></textarea>
 
             <div class="rc-composer__bar">
-                <label class="rc-tool" title="{{ __('Attach a file') }}">
-                    <span x-text="uploading ? '⏳' : '📎'"></span>
+                <label class="rc-icon-button" title="{{ __('Attach a file') }}">
+                    <x-chat::icon name="paperclip" />
                     <input
                         type="file"
                         style="display: none"
@@ -125,9 +112,11 @@
                     >
                 </label>
 
-                <span class="rc-composer__hint">{{ __('Enter to send · Shift + Enter for a new line') }}</span>
+                <span class="rc-composer__hint" x-text="uploading ? '{{ __('Uploading…') }}' : '{{ __('Enter to send · Shift + Enter for a new line') }}'"></span>
 
-                <button type="submit" class="rc-send" :disabled="sending || text.trim() === ''">{{ __('Send') }}</button>
+                <button type="submit" class="rc-icon-button rc-icon-button--send" :disabled="sending || text.trim() === ''" title="{{ __('Send') }}">
+                    <x-chat::icon name="send" />
+                </button>
             </div>
         </div>
     </form>

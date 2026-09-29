@@ -26,25 +26,27 @@ decides.
 
 ## Installing it
 
-All three portals are on one server, so either way works:
-
 ```jsonc
-// composer.json — the version-controlled way
+// composer.json
 "repositories": [
-    { "type": "vcs", "url": "git@github.com:Abhisarchoudhary/chat-package.git" }
-]
-```
-
-```jsonc
-// or, while developing: one checked-out folder, no repository at all
-"repositories": [
-    { "type": "path", "url": "../chat-package", "options": { "symlink": true } }
+    { "type": "vcs", "url": "https://github.com/Abhisarchoudhary/chat-package.git" }
 ]
 ```
 
 ```bash
-composer require revun/chat
+composer require revun/chat:dev-main
 ```
+
+The repository is public, so nothing needs a key or a token. `dev-main` is
+named explicitly because the portals keep `minimum-stability: stable`; the
+commit is pinned in `composer.lock` like any other dependency, so a deploy
+installs exactly what was tested.
+
+**A path repository is not an alternative.** `{"type": "path", "url":
+"../chat-package"}` writes that path into the lock file, and a lock file that
+points at a sibling folder installs on the machine that has one and nowhere
+else — the server does not, and `composer install` fails there before anything
+else can go wrong. Develop against the repository and push.
 
 Then in `.env`:
 
@@ -144,12 +146,12 @@ appear in the same address book as Royal York's.
 ```jsonc
 // composer.json
 "repositories": [
-    { "type": "vcs", "url": "git@github.com:Abhisarchoudhary/chat-package.git" }
+    { "type": "vcs", "url": "https://github.com/Abhisarchoudhary/chat-package.git" }
 ]
 ```
 
 ```bash
-composer require revun/chat
+composer require revun/chat:dev-main
 ```
 
 **2. The same three Stream values, and its own name.**
@@ -208,8 +210,14 @@ anything that portal keeps elsewhere.
 **5. Mount the interface.**
 
 ```blade
-{{-- the layout, so a conversation follows people across the portal --}}
-<x-chat::dock />
+{{-- The layout, so a conversation follows people across the portal.
+     `@persist` is not optional where the portal uses `wire:navigate`: without
+     it every page change rebuilds the dock, which means the launcher is not on
+     the screen until the new page wakes Alpine up, and whatever somebody had
+     half-written in an open box is gone. --}}
+@persist('chat')
+    <x-chat::dock />
+@endpersist
 
 {{-- a page of its own --}}
 <x-chat::page />
@@ -233,7 +241,16 @@ document.addEventListener('alpine:init', () => {
 
 ```bash
 npm install stream-chat @stream-io/video-client
+npm run build                       # the styles and the components live in vendor/
 php artisan chat:sync --limit=5     # a first look, then without the limit
+```
+
+**Afterwards, whenever this package changes**, pull the new commit into that
+portal and rebuild — the interface is compiled from `vendor/revun/chat`, so a
+`composer update` without a build leaves the old one on the screen:
+
+```bash
+composer update revun/chat && npm run build
 ```
 
 **What that portal does not get, on purpose:** the archive and the webhook.

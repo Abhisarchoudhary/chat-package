@@ -251,6 +251,37 @@ API secret — an endpoint that cannot be behind a login and an archive that
 believed anybody who posted to it would be an archive of whatever they felt like
 writing.
 
+### Pointing Stream at it
+
+In the Stream dashboard, one app has **one list of events** — Chat, Video and
+moderation all in it, grouped into cards with a *Select All* on each. There is
+no "chat only" switch to look for, and the `call.*` events that record a call
+are in that same list rather than somewhere separate.
+
+The URL is the endpoint plus the secret that is its whole authentication:
+
+```
+https://<domain>/chat/webhook/<CHAT_WEBHOOK_SECRET>
+```
+
+**Select every event.** This endpoint reads the nine it keeps and ignores the
+rest, and Stream only sends newly introduced event types to a hook that asked
+for everything — picking a list now means going back to the dashboard the day
+Stream adds an event we want. If a shorter list is wanted anyway, these are the
+ones that are read:
+
+| Card | Events |
+| --- | --- |
+| `message` | `message.new`, `message.updated`, `message.deleted` |
+| `channel` | `channel.created`, `channel.updated`, `channel.deleted` |
+| `member` | `member.added`, `member.updated`, `member.removed` |
+| `call` | `call.session_started`, `call.session_ended`, `call.recording_ready` |
+
+**There is nothing to set up on a laptop.** Stream posts from the internet to a
+public HTTPS address; it cannot reach `localhost`, so this is a step for the
+server and chat works locally without it. What the webhook would have written,
+`chat:sweep` writes an hour later anyway.
+
 **Webhooks are not the guarantee.** A deploy, a restart or a network minute
 loses events, so `chat:sweep` re-reads each conversation hourly and backfills
 what is missing. It says how much it filled, because that number is what decides

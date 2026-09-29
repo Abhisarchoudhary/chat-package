@@ -173,6 +173,18 @@ export function registerChat(Alpine) {
         /** Conversations currently drawn on screen, by cid. */
         watching: {},
 
+        /**
+         * How many unread messages each conversation holds.
+         *
+         * Kept here rather than asked of the channel. `channel.countUnread()`
+         * answers from the read state the channel was handed when it was
+         * queried, and a channel the browser is already watching is never
+         * handed a new one — it answers nought while Stream's own event says
+         * two. The event and `getUnreadCount()` are the authority; this is
+         * where their answer is kept.
+         */
+        unreadOf: {},
+
         /** What the page is showing. */
         active: null,
 
@@ -220,6 +232,8 @@ export function registerChat(Alpine) {
 
             list.forEach((channel) => this.hold(channel));
 
+            await this.syncUnread();
+
             this.refresh();
             this.listen();
 
@@ -264,16 +278,24 @@ export function registerChat(Alpine) {
                     /*
                      * A message that lands in a conversation somebody is
                      * looking at has been read. Counting it unread leaves a
-                     * badge on a window they are already sitting in, and
-                     * nothing they can do clears it — it was marked read when
-                     * they opened the conversation, and they never opened it
-                     * again.
+                     * badge on the window they are already sitting in, and
+                     * nothing they can do clears it — the count is cleared
+                     * when a conversation is opened, and this one never was.
                      */
                     if (this.reading(cid)) {
                         this.markRead(cid);
-                    } else if (cid !== this.active && !onChatPage()) {
-                        this.openBox(cid);
+                    } else {
+                        this.unreadOf = { ...this.unreadOf, [cid]: (this.unreadOf[cid] ?? 0) + 1 };
+
+                        if (cid !== this.active && !onChatPage()) {
+                            this.openBox(cid);
+                        }
                     }
+                }
+
+                /* Read somewhere else — another tab, a phone. */
+                if (event.type === 'notification.mark_read') {
+                    this.syncUnread().then(() => this.refresh());
                 }
 
                 this.refresh();
@@ -301,10 +323,38 @@ export function registerChat(Alpine) {
         /** Rebuild what the interface draws from what the client holds. */
         refresh() {
             this.conversations = [...channels.values()]
-                .map((channel) => snapshot(channel, this.me))
+                .map((channel) => {
+                    const conversation = snapshot(channel, this.me);
+
+                    conversation.unread = this.unreadOf[conversation.cid] ?? 0;
+
+                    return conversation;
+                })
                 .sort((a, b) => b.at - a.at);
 
             this.unread = this.conversations.reduce((total, conversation) => total + conversation.unread, 0);
+        },
+
+        /**
+         * Ask Stream what is actually unread.
+         *
+         * Done on connect and whenever somebody comes back to the tab, so a
+         * count that drifted — a message missed while the laptop was shut, a
+         * conversation read on a phone — is corrected rather than carried.
+         */
+        async syncUnread() {
+            try {
+                const counts = await client.getUnreadCount();
+                const map = {};
+
+                (counts.channels ?? []).forEach((channel) => {
+                    map[channel.channel_id] = channel.unread_count;
+                });
+
+                this.unreadOf = map;
+            } catch {
+                /* Keep what we have rather than wiping the badges. */
+            }
         },
 
         find(cid) {
@@ -357,13 +407,24 @@ export function registerChat(Alpine) {
             this.rememberOpen();
         },
 
+        /**
+         * Reading a conversation.
+         *
+         * Only while the tab is in front of somebody: a conversation open in a
+         * window nobody is looking at has not been read, and marking it read
+         * there is how a message gets missed.
+         */
         async markRead(cid) {
             const channel = this.raw(cid);
 
-            if (channel && (channel.countUnread?.() ?? 0) > 0) {
-                await channel.markRead();
-                this.refresh();
+            if (!channel || document.visibilityState !== 'visible') {
+                return;
             }
+
+            this.unreadOf = { ...this.unreadOf, [cid]: 0 };
+            this.refresh();
+
+            await channel.markRead().catch(() => {});
         },
 
         /* ---------------------------------------------------- starting one */
@@ -474,7 +535,12 @@ export function registerChat(Alpine) {
 
             /* Coming back to the tab is reading it too. */
             this.onVisible = () => {
-                if (document.visibilityState === 'visible') this.$store.chat.markRead(this.cid);
+                if (document.visibilityState !== 'visible') return;
+
+                /* Correct anything that drifted while the tab was away, then
+                   read what is in front of them. */
+                this.$store.chat.syncUnread()
+                    .then(() => this.$store.chat.markRead(this.cid));
             };
 
             document.addEventListener('visibilitychange', this.onVisible);

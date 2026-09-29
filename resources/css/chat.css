@@ -301,8 +301,19 @@
 }
 
 .rc-main__title { flex: 1; min-width: 0; }
-.rc-main__title strong { display: block; }
-.rc-main__title span { color: var(--rc-muted); font-size: 13px; }
+.rc-main__title strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* One line: a channel of twenty people would otherwise push the actions off. */
+.rc-main__title span {
+    display: block;
+    color: var(--rc-muted);
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rc-main__head .rc-button { flex: none; }
 
 .rc-empty { flex: 1; display: grid; place-items: center; color: var(--rc-muted); padding: 40px; text-align: center; }
 

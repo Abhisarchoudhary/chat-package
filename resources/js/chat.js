@@ -51,6 +51,14 @@ async function ask(url, options = {}) {
 
 /** A conversation's title, which for a direct message is the other person. */
 function titleOf(channel, me) {
+    /*
+     * A box restored from a previous page can be drawn before its channel has
+     * been fetched, so every reader here survives a null rather than throwing
+     * inside an Alpine effect — where the error is silent and the rest of the
+     * component simply stops.
+     */
+    if (!channel) return '';
+
     if (channel.data?.name) {
         return channel.data.name;
     }
@@ -63,6 +71,8 @@ function titleOf(channel, me) {
 }
 
 function imageOf(channel, me) {
+    if (!channel) return null;
+
     if (channel.data?.image) return channel.data.image;
 
     const other = Object.values(channel.state?.members ?? {})
@@ -437,6 +447,11 @@ export function registerChat(Alpine) {
             if (term === '') return channels;
 
             return channels.filter((channel) => this.$store.chat.title(channel).toLowerCase().includes(term));
+        },
+
+        /** Boxes whose channel is actually loaded: the rest are not drawable yet. */
+        get boxes() {
+            return this.$store.chat.open.filter((cid) => this.$store.chat.channelFor(cid));
         },
 
         preview(channel) {

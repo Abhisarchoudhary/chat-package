@@ -124,6 +124,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Calls
+    |--------------------------------------------------------------------------
+    |
+    | Audio today, video when the same component is asked for it. Every call is
+    | recorded and the card says so while it rings — a recording people find
+    | out about afterwards is a different thing entirely.
+    |
+    */
+
+    'calls' => [
+        'record' => (bool) env('CHAT_RECORD_CALLS', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Routes
     |--------------------------------------------------------------------------
     */

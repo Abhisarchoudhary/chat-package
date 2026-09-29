@@ -355,3 +355,39 @@
     .rc-dock { right: 8px; }
     .rc-box { width: min(92vw, 320px); }
 }
+
+/* ----------------------------------------------------------------- a call */
+
+.rc-call { position: fixed; top: 84px; right: 20px; z-index: 80; }
+
+.rc-call__card {
+    width: 300px;
+    padding: 16px;
+    background: linear-gradient(135deg, #101a32, #233f73);
+    color: #fff;
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow);
+    display: grid;
+    gap: 12px;
+}
+
+.rc-call__who { display: flex; align-items: center; gap: 10px; }
+.rc-call__who strong { display: block; }
+.rc-call__who span { font-size: 13px; color: #cdddf6; }
+.rc-call__note { font-size: 12px; color: #cdddf6; }
+.rc-call__actions { display: flex; gap: 8px; }
+
+.rc-call__button {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1px solid #ffffff3d;
+    border-radius: 9px;
+    background: #ffffff1f;
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rc-call__button--go { background: #12b98b; border-color: #12b98b; }
+.rc-call__button--stop { background: var(--rc-danger); border-color: var(--rc-danger); }

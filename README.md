@@ -133,6 +133,39 @@ php artisan chat:sync --limit=5  # a first look before letting it loose
 
 ---
 
+## The archive
+
+One portal keeps the record: `CHAT_ARCHIVE=true` there and nowhere else, because
+three writers would be three archives that disagree. Stream posts every message,
+edit, deletion and membership change to `/chat/webhook/<secret>`, signed with the
+API secret — an endpoint that cannot be behind a login and an archive that
+believed anybody who posted to it would be an archive of whatever they felt like
+writing.
+
+**Webhooks are not the guarantee.** A deploy, a restart or a network minute
+loses events, so `chat:sweep` re-reads each conversation hourly and backfills
+what is missing. It says how much it filled, because that number is what decides
+whether the vendor's own retention may be switched on: while it is still finding
+gaps they are recoverable, and the day Stream starts deleting its copy they are
+not.
+
+```bash
+php artisan chat:sweep              # hourly; --days and --channels widen it
+```
+
+A person deleting their own message hides it from the conversation and keeps the
+words here, with who removed them. Erasing them for good is a different act, a
+different column (`purged_at`) and a permission the portal decides.
+
+## Calls
+
+Audio today, video when the same component is asked for it. The call id is
+derived from the conversation, so two people pressing call land in one call
+rather than two beside each other, and the card says the call is recorded while
+it rings rather than in a policy nobody read.
+
+---
+
 ## The identity rule
 
 A person is their email address, everywhere — the same rule the three portals

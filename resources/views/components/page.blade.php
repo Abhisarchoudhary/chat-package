@@ -70,6 +70,18 @@
                         <span x-text="Object.values($store.chat.channelFor($store.chat.active).state?.members ?? {}).map(m => m.user?.name ?? m.user_id).join(', ')"></span>
                     </span>
 
+                    <template x-if="$store.chat.abilities['call']">
+                        <button
+                            type="button"
+                            class="rc-button rc-button--primary"
+                            @click="$store.calls.start(
+                                $store.chat.active,
+                                Object.keys($store.chat.channelFor($store.chat.active).state?.members ?? {}),
+                                $store.chat.title($store.chat.channelFor($store.chat.active)),
+                            )"
+                        >{{ __('Call') }}</button>
+                    </template>
+
                     <button
                         type="button"
                         class="rc-button"

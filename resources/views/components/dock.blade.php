@@ -7,9 +7,11 @@
     change (sessionStorage), which is what makes it feel like one application
     instead of a page that has to be gone back to.
 --}}
+<x-chat::call />
+
 <div class="rc-dock" x-data="chatDock()" x-cloak>
     {{-- Open conversations, newest on the right, nearest the launcher. --}}
-    <template x-for="cid in $store.chat.open" :key="cid">
+    <template x-for="cid in boxes" :key="cid">
         <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded" style="cursor: pointer">
                 <span class="rc-avatar rc-avatar--sm" style="background: #ffffff26; color: #fff">
@@ -22,6 +24,15 @@
                 </span>
 
                 <span class="rc-box__title" x-text="$store.chat.title($store.chat.channelFor(cid))"></span>
+
+                <template x-if="$store.chat.abilities['call']">
+                    <button
+                        type="button"
+                        class="rc-box__action"
+                        title="{{ __('Call') }}"
+                        @click.stop="$store.calls.start(cid, Object.keys($store.chat.channelFor(cid).state?.members ?? {}), $store.chat.title($store.chat.channelFor(cid)))"
+                    >☎</button>
+                </template>
 
                 <button type="button" class="rc-box__action" @click.stop="folded = ! folded" x-text="folded ? '▴' : '▾'"></button>
                 <button type="button" class="rc-box__action" @click.stop="$store.chat.closeBox(cid)">×</button>

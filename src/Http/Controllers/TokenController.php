@@ -4,7 +4,7 @@ namespace Revun\Chat\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Revun\Chat\Contracts\ChatParticipant;
+use Revun\Chat\Contracts\ParticipantDirectory;
 use Revun\Chat\Stream;
 use Revun\Chat\StreamUsers;
 use Revun\Chat\Tokens;
@@ -24,11 +24,16 @@ use Revun\Chat\Tokens;
  */
 final class TokenController
 {
-    public function __invoke(Request $request, Stream $stream, Tokens $tokens, StreamUsers $users): JsonResponse
+    public function __invoke(Request $request, ParticipantDirectory $directory, Stream $stream, Tokens $tokens, StreamUsers $users): JsonResponse
     {
-        $person = $request->user();
+        /*
+         * The portal decides who may chat — its own table, its own conditions,
+         * its own roles. Null is the whole answer for a visitor, a deactivated
+         * account and somebody whose role does not have chat.
+         */
+        $person = $directory->current();
 
-        if (! $person instanceof ChatParticipant) {
+        if ($person === null) {
             return response()->json(['message' => 'This account cannot use chat.'], 403);
         }
 

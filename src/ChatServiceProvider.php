@@ -3,6 +3,7 @@
 namespace Revun\Chat;
 
 use Illuminate\Support\ServiceProvider;
+use Revun\Chat\Contracts\ParticipantDirectory;
 
 /**
  * Chat, installed the same way in three portals.
@@ -20,6 +21,15 @@ final class ChatServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/chat.php', 'chat');
 
         $this->app->singleton(Stream::class);
+
+        /*
+         * Who may chat is the portal's answer, so it is bound rather than
+         * assumed: a package that knew the table would be wrong in two of the
+         * three portals on the day it was written.
+         */
+        $this->app->bind(ParticipantDirectory::class, fn ($app) => $app->make(
+            config('chat.directory') ?: Directory\AuthenticatedUsers::class,
+        ));
     }
 
     public function boot(): void
@@ -33,6 +43,10 @@ final class ChatServiceProvider extends ServiceProvider
          */
         if ((bool) config('chat.archive.enabled')) {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([Console\SyncParticipants::class]);
         }
 
         $this->publishes([

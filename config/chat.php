@@ -38,6 +38,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Who this portal's chat people are
+    |--------------------------------------------------------------------------
+    |
+    | Not a table name — a small class in the portal that answers "who may
+    | chat", because it is never only a table. Royal York keeps employees in
+    | `users`; the recruitment portal has recruiters and must not let applicants
+    | in; MSR has its own arrangement. And each of them will grow a condition:
+    | active, in a role that was given chat, not a client.
+    |
+    | Leave it null and the package uses the signed-in user where the user model
+    | implements ChatParticipant. Set `model` as well and `chat:sync` and the
+    | audit page can look people up.
+    |
+    */
+
+    'directory' => env('CHAT_DIRECTORY'),
+
+    'model' => env('CHAT_MODEL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | The archive
     |--------------------------------------------------------------------------
     |

@@ -57,12 +57,16 @@ CHAT_ORGANISATION=rypm          # rypm | otr | crp — which business this porta
 # Royal York only: the portal that keeps the record and receives the webhook.
 CHAT_ARCHIVE=true
 CHAT_WEBHOOK_SECRET=
+
+# Optional: who may chat here, and where to look them up.
+CHAT_DIRECTORY=
+CHAT_MODEL=
 ```
 
 The same key, secret and app id go in **all three** portals. That is what puts
 everyone in one directory; nothing else is created per portal.
 
-And on the User model:
+And on whatever model this portal keeps its people in:
 
 ```php
 use Revun\Chat\Contracts\ChatParticipant;
@@ -78,6 +82,53 @@ class User extends Authenticatable implements ChatParticipant
         return $this->department?->name;
     }
 }
+```
+
+### Who may chat is the portal's answer, not a table name
+
+The three portals do not agree on where their people are — Royal York has
+`users`, the recruitment portal has recruiters and must keep applicants out,
+MSR has its own arrangement — and it is never only a table anyway: it is a
+table with conditions on it. Active. Not a client. In a role that was given
+chat.
+
+So the package asks. A portal writes a dozen lines and names it in
+`config/chat.php`:
+
+```php
+'directory' => App\Modules\Chat\Employees::class,
+```
+
+```php
+final class Employees implements ParticipantDirectory
+{
+    public function current(): ?ChatParticipant
+    {
+        $user = auth()->user();
+
+        return $user?->isActive() && $user->can('chat.use') ? $user : null;
+    }
+
+    public function all(): iterable
+    {
+        return User::query()->active()->cursor();      // whatever "may chat" means here
+    }
+
+    public function find(string $streamId): ?ChatParticipant
+    {
+        return User::query()->get()->first(fn ($u) => Identity::forEmail($u->email) === $streamId);
+    }
+}
+```
+
+Leave it unset and the package uses the signed-in user, which is right for a
+portal where everybody active may chat. `current()` returning null is the whole
+of "this person may not chat" — one place to change it, in the portal, next to
+every other rule about who may do what.
+
+```bash
+php artisan chat:sync            # fill the directory; nightly afterwards
+php artisan chat:sync --limit=5  # a first look before letting it loose
 ```
 
 ---

@@ -1,5 +1,3 @@
-<x-chat::call />
-
 {{--
     The dock: a launcher that follows somebody across every page, the list of
     who they are talking to, and the boxes those conversations open in.
@@ -8,8 +6,17 @@
     is answering somebody while doing something else. Boxes survive a page
     change, which is what makes it one application instead of a page to go back
     to.
+
+    **One root element, because the layout persists it.** A dock rebuilt on
+    every page change is a dock that vanishes for as long as the new page takes
+    to wake Alpine up, and takes the half-written message in the box with it.
+    `@persist` moves this node instead of re-creating it, and `@persist` takes
+    exactly one child — so the call card lives inside the dock rather than
+    beside it.
 --}}
-<div class="rc-dock" x-data="chatDock()" x-cloak>
+<div class="rc-chat" x-data="chatDock()" x-cloak>
+<x-chat::call />
+<div class="rc-dock">
     <template x-for="cid in boxes" :key="cid">
         <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded">
@@ -116,4 +123,5 @@
             </template>
         </button>
     </div>
+</div>
 </div>

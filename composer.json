@@ -1,0 +1,38 @@
+{
+    "name": "revun/chat",
+    "description": "Chat, shared by the Royal York, MSR and candidate portals: one Stream app, one identity, one archive.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2",
+        "get-stream/stream-chat": "^3.18",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "phpunit/phpunit": "^11.0|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Revun\\Chat\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Revun\\Chat\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Revun\\Chat\\ChatServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

@@ -274,7 +274,18 @@ export function registerChat(Alpine) {
                     this.hold(channels.get(cid));
                 }
 
-                if (event.type === 'message.new' && event.user?.id !== this.me && cid) {
+                /*
+                 * A new message arrives under two names: `message.new` for a
+                 * conversation the browser is watching, and
+                 * `notification.message_new` for one it is not. Listening for
+                 * only the first is listening for only the conversations
+                 * already on screen — which are precisely the ones that do not
+                 * need a badge.
+                 */
+                const arrived = ['message.new', 'notification.message_new'].includes(event.type);
+                const from = event.message?.user?.id ?? event.user?.id;
+
+                if (arrived && from !== this.me && cid) {
                     /*
                      * A message that lands in a conversation somebody is
                      * looking at has been read. Counting it unread leaves a

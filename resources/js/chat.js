@@ -304,10 +304,14 @@ export function registerChat(Alpine) {
                     }
                 }
 
-                /* Read somewhere else — another tab, a phone. */
-                if (event.type === 'notification.mark_read') {
-                    this.syncUnread().then(() => this.refresh());
-                }
+                /*
+                 * Stream's own `message.read` is not a signal here. It sends
+                 * one for us the instant a message reaches a conversation this
+                 * browser is watching — which is every conversation — so
+                 * honouring it would wipe the badge we had just raised. The
+                 * count is cleared when somebody reads the conversation here,
+                 * and nowhere else.
+                 */
 
                 this.refresh();
             });
@@ -347,11 +351,15 @@ export function registerChat(Alpine) {
         },
 
         /**
-         * Ask Stream what is actually unread.
+         * Ask Stream what was unread when we arrived.
          *
-         * Done on connect and whenever somebody comes back to the tab, so a
-         * count that drifted — a message missed while the laptop was shut, a
-         * conversation read on a phone — is corrected rather than carried.
+         * Once, on connect, and never again while the page is open — because
+         * Stream marks a conversation read the moment a message reaches a
+         * browser that is watching it, and this browser watches every
+         * conversation somebody is in. Asked a second time it answers nought
+         * to everything, which is how a badge that had just gone up came
+         * straight back down. What happened while the page was shut is the
+         * server's to tell us; what happens while it is open, we can see.
          */
         async syncUnread() {
             try {
@@ -545,13 +553,9 @@ export function registerChat(Alpine) {
             this.scroll();
 
             /* Coming back to the tab is reading it too. */
+            /* Coming back to the tab is reading what is in front of them. */
             this.onVisible = () => {
-                if (document.visibilityState !== 'visible') return;
-
-                /* Correct anything that drifted while the tab was away, then
-                   read what is in front of them. */
-                this.$store.chat.syncUnread()
-                    .then(() => this.$store.chat.markRead(this.cid));
+                if (document.visibilityState === 'visible') this.$store.chat.markRead(this.cid);
             };
 
             document.addEventListener('visibilitychange', this.onVisible);

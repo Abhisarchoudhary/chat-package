@@ -304,14 +304,11 @@ export function registerChat(Alpine) {
                     }
                 }
 
-                /*
-                 * Stream's own `message.read` is not a signal here. It sends
-                 * one for us the instant a message reaches a conversation this
-                 * browser is watching — which is every conversation — so
-                 * honouring it would wipe the badge we had just raised. The
-                 * count is cleared when somebody reads the conversation here,
-                 * and nowhere else.
-                 */
+                /* Read somewhere else: the same person on their phone, or in
+                   another window. Their own account reading it is a read. */
+                if (['message.read', 'notification.mark_read'].includes(event.type) && cid && event.user?.id === this.me) {
+                    this.unreadOf = { ...this.unreadOf, [cid]: 0 };
+                }
 
                 this.refresh();
             });

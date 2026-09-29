@@ -184,8 +184,22 @@
 
 /* -------------------------------------------------------------- the room */
 
-/* A row, so the details panel sits beside the room rather than under it. */
-.rc-main { display: flex; min-width: 0; position: relative; background: var(--rc-surface); }
+/*
+ * A row, so the details panel sits beside the room rather than under it.
+ *
+ * `min-height: 0` is not decoration. A grid item refuses by default to be
+ * shorter than its own content, and a day of messages is taller than the
+ * page — so the room grew past the bottom of the frame and took the box
+ * somebody types in with it.
+ */
+.rc-main {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    background: var(--rc-surface);
+}
 
 .rc-main__head {
     display: flex;

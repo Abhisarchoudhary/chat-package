@@ -1,0 +1,357 @@
+/*
+ * Chat's own styles, deliberately plain CSS.
+ *
+ * Three portals with three Tailwind setups would otherwise need the package's
+ * markup in each of their content globs, and a class that works in one and is
+ * purged in another is the worst kind of bug — it only appears in production.
+ * So chat carries its own, themed through variables the portal can set.
+ */
+
+:root {
+    --rc-primary: var(--color-primary, #2457f5);
+    --rc-primary-soft: var(--color-primary-subtle, #eef3ff);
+    --rc-surface: #ffffff;
+    --rc-text: #111b2e;
+    --rc-muted: #526078;
+    --rc-line: #e4eaf3;
+    --rc-danger: #ae2345;
+    --rc-radius: 14px;
+    --rc-shadow: 0 10px 30px rgb(17 27 46 / 12%);
+}
+
+/* ---------------------------------------------------------------- the dock */
+
+.rc-dock {
+    position: fixed;
+    right: 20px;
+    bottom: 0;
+    z-index: 60;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--rc-text);
+}
+
+.rc-launcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    background: var(--rc-primary);
+    color: #fff;
+    border: 0;
+    border-radius: 999px;
+    box-shadow: var(--rc-shadow);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.rc-launcher:hover { filter: brightness(1.05); }
+
+.rc-badge {
+    min-width: 20px;
+    padding: 1px 6px;
+    background: #fff;
+    color: var(--rc-primary);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.rc-badge--quiet { background: var(--rc-primary); color: #fff; }
+
+/* The list of conversations that opens above the launcher. */
+.rc-panel {
+    position: absolute;
+    right: 0;
+    bottom: 68px;
+    width: 320px;
+    max-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow);
+    overflow: hidden;
+}
+
+.rc-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--rc-line);
+    font-weight: 700;
+}
+
+.rc-panel__search {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--rc-line);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.rc-panel__list { overflow-y: auto; }
+
+.rc-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--rc-line);
+    text-align: left;
+    cursor: pointer;
+    align-items: center;
+}
+
+.rc-row:hover { background: var(--rc-primary-soft); }
+.rc-row__body { min-width: 0; flex: 1; }
+.rc-row__title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-row__preview { color: var(--rc-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ------------------------------------------------------------ chat boxes */
+
+.rc-box {
+    width: 320px;
+    height: 420px;
+    display: flex;
+    flex-direction: column;
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-radius: var(--rc-radius) var(--rc-radius) 0 0;
+    box-shadow: var(--rc-shadow);
+    overflow: hidden;
+}
+
+.rc-box--folded { height: auto; }
+
+.rc-box__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: linear-gradient(90deg, #101a32, #233f73);
+    color: #fff;
+}
+
+.rc-box__title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-box__action { background: none; border: 0; color: #ffffffb3; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; }
+.rc-box__action:hover { color: #fff; }
+
+/* ------------------------------------------------------- the conversation */
+
+.rc-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fbfcfe;
+}
+
+.rc-message { display: flex; gap: 8px; max-width: 85%; }
+.rc-message--mine { margin-left: auto; flex-direction: row-reverse; }
+
+.rc-bubble {
+    padding: 8px 11px;
+    background: #fff;
+    border: 1px solid var(--rc-line);
+    border-radius: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.rc-message--mine .rc-bubble { background: var(--rc-primary); border-color: var(--rc-primary); color: #fff; }
+.rc-message__meta { margin-top: 3px; font-size: 11px; color: var(--rc-muted); }
+.rc-message--mine .rc-message__meta { text-align: right; }
+.rc-message__deleted { font-style: italic; color: var(--rc-muted); }
+
+.rc-attachment img { max-width: 220px; border-radius: 10px; display: block; }
+.rc-attachment a { color: inherit; text-decoration: underline; }
+
+.rc-typing { padding: 0 12px 6px; font-size: 12px; color: var(--rc-muted); height: 18px; }
+
+.rc-composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--rc-line);
+    background: #fff;
+}
+
+.rc-composer textarea {
+    flex: 1;
+    max-height: 120px;
+    min-height: 38px;
+    padding: 9px 11px;
+    border: 1px solid var(--rc-line);
+    border-radius: 10px;
+    font: inherit;
+    resize: none;
+}
+
+.rc-composer textarea:focus { outline: 2px solid var(--rc-primary); outline-offset: 1px; }
+
+.rc-send {
+    padding: 9px 14px;
+    background: var(--rc-primary);
+    color: #fff;
+    border: 0;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rc-send:disabled { opacity: .5; cursor: default; }
+.rc-clip { padding: 9px; border: 1px solid var(--rc-line); border-radius: 10px; background: #fff; cursor: pointer; }
+.rc-error { padding: 6px 12px; color: var(--rc-danger); font-size: 12px; }
+
+/* ------------------------------------------------------------- the avatar */
+
+.rc-avatar {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--rc-primary-soft);
+    color: var(--rc-primary);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    overflow: hidden;
+}
+
+.rc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rc-avatar--sm { width: 26px; height: 26px; font-size: 10px; }
+
+.rc-presence {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #12b98b;
+    border: 2px solid #fff;
+    margin-left: -12px;
+    align-self: flex-end;
+}
+
+/* --------------------------------------------------------------- the page */
+
+.rc-page {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 20px;
+    height: calc(100vh - 190px);
+    min-height: 480px;
+}
+
+.rc-rail {
+    display: flex;
+    flex-direction: column;
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-radius: var(--rc-radius);
+    overflow: hidden;
+}
+
+.rc-rail__head { padding: 14px; border-bottom: 1px solid var(--rc-line); display: grid; gap: 10px; }
+.rc-tabs { display: flex; gap: 4px; }
+
+.rc-tab {
+    flex: 1;
+    padding: 6px 8px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--rc-muted);
+    cursor: pointer;
+}
+
+.rc-tab--on { background: var(--rc-primary-soft); color: var(--rc-primary); font-weight: 600; }
+.rc-rail__list { flex: 1; overflow-y: auto; }
+.rc-row--on { background: var(--rc-primary-soft); }
+
+.rc-main {
+    display: flex;
+    flex-direction: column;
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-radius: var(--rc-radius);
+    overflow: hidden;
+}
+
+.rc-main__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rc-line);
+}
+
+.rc-main__title { flex: 1; min-width: 0; }
+.rc-main__title strong { display: block; }
+.rc-main__title span { color: var(--rc-muted); font-size: 13px; }
+
+.rc-empty { flex: 1; display: grid; place-items: center; color: var(--rc-muted); padding: 40px; text-align: center; }
+
+/* --------------------------------------------------------------- dialogue */
+
+.rc-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    background: rgb(17 27 46 / 45%);
+    padding: 20px;
+}
+
+.rc-modal__card {
+    width: min(560px, 100%);
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--rc-surface);
+    border-radius: var(--rc-radius);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.rc-field { display: grid; gap: 6px; }
+.rc-field label { font-size: 13px; font-weight: 600; }
+.rc-field input[type="text"], .rc-field textarea, .rc-field select {
+    padding: 9px 11px;
+    border: 1px solid var(--rc-line);
+    border-radius: 9px;
+    font: inherit;
+}
+
+.rc-people { max-height: 260px; overflow-y: auto; border: 1px solid var(--rc-line); border-radius: 10px; }
+.rc-people__group { padding: 8px 12px; background: #f7f9fe; font-size: 12px; font-weight: 700; color: var(--rc-muted); text-transform: uppercase; letter-spacing: .04em; }
+.rc-person { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; background: none; border: 0; cursor: pointer; text-align: left; }
+.rc-person:hover { background: var(--rc-primary-soft); }
+.rc-person__name { flex: 1; min-width: 0; }
+.rc-person__name span { display: block; font-size: 12px; color: var(--rc-muted); }
+.rc-person--chosen { background: var(--rc-primary-soft); }
+
+.rc-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.rc-button { padding: 9px 14px; border-radius: 9px; border: 1px solid var(--rc-line); background: #fff; font: inherit; cursor: pointer; }
+.rc-button--primary { background: var(--rc-primary); border-color: var(--rc-primary); color: #fff; font-weight: 600; }
+
+@media (max-width: 900px) {
+    .rc-page { grid-template-columns: 1fr; height: auto; }
+    .rc-dock { right: 8px; }
+    .rc-box { width: min(92vw, 320px); }
+}

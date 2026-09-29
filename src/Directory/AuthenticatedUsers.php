@@ -30,6 +30,15 @@ final class AuthenticatedUsers implements ParticipantDirectory
         return $user instanceof ChatParticipant && $user->chatActive() ? $user : null;
     }
 
+    /**
+     * Without a portal saying otherwise, anybody who may chat may do the
+     * ordinary things — and nobody reads the archive or erases a message.
+     */
+    public function may(string $ability): bool
+    {
+        return in_array($ability, ['create-channel', 'call'], true) && $this->current() !== null;
+    }
+
     public function all(): iterable
     {
         foreach ($this->query()?->cursor() ?? [] as $user) {

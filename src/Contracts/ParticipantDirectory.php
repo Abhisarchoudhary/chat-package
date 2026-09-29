@@ -50,6 +50,17 @@ interface ParticipantDirectory
     public function all(): iterable;
 
     /**
+     * Whether the person using the portal may do one of chat's guarded things.
+     *
+     * The abilities are `create-channel`, `manage-channels`, `call`,
+     * `read-archive`, `play-recording` and `purge`. The package asks in these
+     * words and the portal answers in its own permissions, which is what lets a
+     * super admin change any of them on the roles page instead of in a vendor
+     * dashboard.
+     */
+    public function may(string $ability): bool;
+
+    /**
      * The person behind a Stream id, for the archive and the audit page.
      *
      * A conversation archived today is read in two years, by which time the

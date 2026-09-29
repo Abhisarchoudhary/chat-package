@@ -2,6 +2,7 @@
 
 namespace Revun\Chat;
 
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Revun\Chat\Contracts\ParticipantDirectory;
 
@@ -35,6 +36,10 @@ final class ChatServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'chat');
+
+        /* <x-chat::dock /> in a layout, <x-chat::page /> on the chat page. */
+        Blade::anonymousComponentPath(__DIR__.'/../resources/views/components', 'chat');
 
         /*
          * One archive, in one portal. Where it is off the package still mints

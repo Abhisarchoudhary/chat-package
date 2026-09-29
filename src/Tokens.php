@@ -30,9 +30,6 @@ final class Tokens
 
         $minutes = $minutes ?? (int) config('chat.token_minutes', 1440);
 
-        return $this->stream->client()->createToken(
-            Identity::forEmail($person->chatEmail()),
-            expiration: time() + ($minutes * 60),
-        );
+        return $this->stream->userToken(Identity::forEmail($person->chatEmail()), $minutes);
     }
 }

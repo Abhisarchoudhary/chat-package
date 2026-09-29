@@ -33,17 +33,30 @@ final class StreamUsers
         $id = Identity::forEmail($person->chatEmail());
         $organisation = $person->chatOrganisation();
 
-        $this->stream->client()->upsertUser([
-            'id' => $id,
+        /*
+         * A partial update rather than an upsert, so three portals writing the
+         * same person cannot undo each other: each sets the fields it owns and
+         * adds itself to the shared ones, one key at a time.
+         */
+        $set = [
             'name' => $person->chatName(),
             'image' => $person->chatImage(),
             'email' => mb_strtolower(trim($person->chatEmail())),
-            'role' => $person->chatRole(),
-            // The department is this portal's answer, so it is namespaced by it:
-            // the same person can be in Leasing here and Recruiting there.
-            'departments' => [$organisation => $person->chatDepartment()],
-            'organisations' => [$organisation => true],
-        ]);
+            'organisations.'.$organisation => true,
+            'departments.'.$organisation => $person->chatDepartment(),
+        ];
+
+        /*
+         * Stream will not partially update a user it has never seen, so the
+         * first write has to create them. Afterwards this is one request.
+         */
+        if (! $this->exists($id)) {
+            $this->stream->post('users', ['users' => [$id => ['id' => $id, 'role' => $person->chatRole()] + $this->unflatten($set)]]);
+
+            return $id;
+        }
+
+        $this->stream->patch('users', ['users' => [['id' => $id, 'set' => $set]]]);
 
         return $id;
     }
@@ -57,16 +70,76 @@ final class StreamUsers
      */
     public function deactivate(ChatParticipant $person): void
     {
-        $this->stream->client()->deactivateUser(
-            Identity::forEmail($person->chatEmail()),
-        );
+        $this->stream->post('users/'.Identity::forEmail($person->chatEmail()).'/deactivate');
     }
 
     public function reactivate(ChatParticipant $person): void
     {
-        $this->stream->client()->reactivateUser(
-            Identity::forEmail($person->chatEmail()),
-        );
+        $this->stream->post('users/'.Identity::forEmail($person->chatEmail()).'/reactivate');
+    }
+
+    /** Whether Stream already holds this person. */
+    public function exists(string $id): bool
+    {
+        $answer = $this->stream->query('users', ['filter_conditions' => ['id' => $id], 'limit' => 1]);
+
+        return ($answer['users'] ?? []) !== [];
+    }
+
+    /**
+     * Everybody this person may start a conversation with.
+     *
+     * The directory is Stream's, not a portal's: a Royal York manager looking
+     * for a recruiter cannot query the recruitment portal's database, and does
+     * not need to — every portal writes its people here.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function directory(int $limit = 100, ?string $search = null, ?string $after = null): array
+    {
+        $filter = ['id' => ['$ne' => 'system']];
+
+        if (filled($search)) {
+            $filter['$or'] = [
+                ['name' => ['$autocomplete' => $search]],
+                ['email' => ['$autocomplete' => $search]],
+            ];
+        }
+
+        $answer = $this->stream->query('users', array_filter([
+            'filter_conditions' => $filter,
+            'sort' => [['field' => 'name', 'direction' => 1]],
+            'limit' => max(1, min($limit, 100)),
+            'next' => $after,
+        ]));
+
+        return array_values((array) ($answer['users'] ?? []));
+    }
+
+    /**
+     * Stream takes nested fields as dotted paths when setting and as a tree
+     * when creating; this is the one place that difference is handled.
+     *
+     * @param  array<string, mixed>  $set
+     * @return array<string, mixed>
+     */
+    private function unflatten(array $set): array
+    {
+        $tree = [];
+
+        foreach ($set as $key => $value) {
+            $node = &$tree;
+
+            foreach (explode('.', $key) as $segment) {
+                $node[$segment] ??= [];
+                $node = &$node[$segment];
+            }
+
+            $node = $value;
+            unset($node);
+        }
+
+        return $tree;
     }
 
     /**
@@ -76,9 +149,9 @@ final class StreamUsers
      */
     public function update(ChatParticipant $person, array $set): void
     {
-        $this->stream->client()->partialUpdateUser([
+        $this->stream->patch('users', ['users' => [[
             'id' => Identity::forEmail($person->chatEmail()),
             'set' => $set,
-        ]);
+        ]]]);
     }
 }

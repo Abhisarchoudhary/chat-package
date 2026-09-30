@@ -46,6 +46,17 @@
                             <div class="rc-msg__text" x-text="message.text"></div>
                         </template>
 
+                        <template x-if="message.replies > 0">
+                            <button
+                                type="button"
+                                class="rc-msg__thread"
+                                @click="$store.chat.openThread(cid, message.id)"
+                            >
+                                <x-chat::icon name="thread" size="14" />
+                                <span x-text="message.replies === 1 ? '1 {{ __('reply') }}' : message.replies + ' {{ __('replies') }}'"></span>
+                            </button>
+                        </template>
+
                         <template x-for="file in message.attachments" :key="file.url">
                             <div>
                                 <template x-if="file.kind === 'image'">
@@ -62,11 +73,22 @@
                         </template>
                     </div>
 
-                    <template x-if="message.mine">
+                    <template x-if="! message.deleted">
                         <div class="rc-msg__tools">
-                            <button type="button" class="rc-icon-button rc-icon-button--sm" @click="remove(message)" title="{{ __('Delete') }}">
-                                <x-chat::icon name="trash" size="15" />
+                            <button
+                                type="button"
+                                class="rc-icon-button rc-icon-button--sm"
+                                @click="$store.chat.openThread(cid, message.id)"
+                                title="{{ __('Reply in thread') }}"
+                            >
+                                <x-chat::icon name="reply" size="15" />
                             </button>
+
+                            <template x-if="message.mine">
+                                <button type="button" class="rc-icon-button rc-icon-button--sm" @click="remove(message)" title="{{ __('Delete') }}">
+                                    <x-chat::icon name="trash" size="15" />
+                                </button>
+                            </template>
                         </div>
                     </template>
                 </div>

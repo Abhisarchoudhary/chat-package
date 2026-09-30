@@ -99,22 +99,6 @@
 .rc-search::placeholder { color: #8fa0c0; }
 .rc-search:focus { outline: 2px solid var(--rc-primary); background: #ffffff1f; }
 
-.rc-tabs { display: flex; gap: 3px; }
-
-.rc-tab {
-    flex: 1;
-    padding: 5px 4px;
-    background: none;
-    border: 0;
-    border-radius: 7px;
-    font: inherit;
-    font-size: 12px;
-    color: #8fa0c0;
-    cursor: pointer;
-}
-
-.rc-tab:hover { color: #fff; background: #ffffff0f; }
-.rc-tab--on { background: #ffffff1f; color: #fff; font-weight: 600; }
 
 .rc-rail__group {
     padding: 14px 16px 6px;
@@ -302,6 +286,24 @@
 
 .rc-msg__gone { color: var(--rc-muted); font-style: italic; font-size: 13.5px; }
 
+.rc-msg__thread {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    padding: 2px 8px 2px 6px;
+    background: var(--rc-primary-soft);
+    border: 0;
+    border-radius: 999px;
+    color: var(--rc-primary);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rc-msg__thread:hover { filter: brightness(.97); }
+
 .rc-msg__tools {
     position: absolute;
     top: -10px;
@@ -451,81 +453,370 @@
     border: 2px solid #fff;
 }
 
-/* ============================================================== the dock */
+/* =============================================================== the bar */
+
+/*
+ * Chat lives along the bottom left, where a taskbar lives, because that is
+ * what it is: something running beside the work rather than a place to go.
+ *
+ * The old launcher was a pill floating over the bottom right of every page —
+ * which is where every widget on the internet puts itself, and which sat on
+ * top of whatever the page had in that corner. A bar has a place of its own.
+ */
 
 .rc-dock {
     position: fixed;
-    right: 20px;
+    left: 20px;
     bottom: 0;
     z-index: 60;
+    width: 372px;
+    max-width: calc(100vw - 40px);
     display: flex;
-    align-items: flex-end;
-    gap: 12px;
+    flex-direction: column;
     font-size: 14px;
     color: var(--rc-text);
 }
 
-.rc-launcher {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 18px;
-    margin-bottom: 18px;
-    background: var(--rc-navy);
-    color: #fff;
-    border: 0;
-    border-radius: 999px;
-    box-shadow: var(--rc-shadow);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
+/* Expanded: the whole chat, which is the same panel wearing the whole window
+   rather than a second screen that could disagree with this one. */
+.rc-dock--wide {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
 }
 
-.rc-launcher:hover { background: var(--rc-navy-2); }
+.rc-bar {
+    flex: none;
+    display: flex;
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -2px 20px rgb(17 27 46 / 8%);
+    overflow: hidden;
+}
+
+.rc-mini + .rc-bar { border-radius: 0; box-shadow: none; border-top-color: var(--rc-line); }
+
+.rc-tab {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 8px 4px 7px;
+    background: none;
+    border: 0;
+    color: var(--rc-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+.rc-tab:hover { background: var(--rc-hover); color: var(--rc-text); }
+.rc-tab--on,
+.rc-tab--on:hover { background: var(--rc-primary-soft); color: var(--rc-primary); }
+.rc-tab__icon { position: relative; display: grid; place-items: center; }
+.rc-tab__label { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.rc-tab--on .rc-tab__label { font-weight: 700; }
+.rc-tab .rc-badge { position: absolute; top: -7px; left: 10px; }
 
 .rc-badge {
-    min-width: 20px;
-    padding: 1px 6px;
+    min-width: 18px;
+    padding: 0 5px;
     background: var(--rc-danger);
     color: #fff;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
+    line-height: 17px;
     text-align: center;
 }
 
-.rc-panel {
-    position: absolute;
-    right: 0;
-    bottom: 74px;
-    width: 330px;
-    max-height: 64vh;
+/* --------------------------------------------------------- what it opens */
+
+.rc-mini {
     display: flex;
     flex-direction: column;
-    background: var(--rc-navy);
-    border-radius: var(--rc-radius);
+    height: min(560px, 72vh);
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-bottom: 0;
+    border-radius: var(--rc-radius) var(--rc-radius) 0 0;
     box-shadow: var(--rc-shadow);
     overflow: hidden;
-    color: var(--rc-navy-text);
 }
 
-.rc-panel__head {
+.rc-dock--wide .rc-mini { height: calc(100vh - 70px); }
+
+.rc-mini__head {
+    flex: none;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 13px 16px 10px;
-    color: #fff;
-    font-weight: 700;
+    gap: 9px;
+    padding: 9px 9px 9px 12px;
+    border-bottom: 1px solid var(--rc-line);
 }
 
-.rc-panel__head a { color: #9db6ff; font-size: 12.5px; font-weight: 500; text-decoration: none; }
-.rc-panel__head a:hover { color: #fff; }
-.rc-panel__search { padding: 0 16px 12px; }
-.rc-panel .rc-row { padding-block: 9px; }
-.rc-panel__list { overflow-y: auto; padding-bottom: 8px; }
-.rc-panel__empty { padding: 26px 20px; text-align: center; color: #8595b5; font-size: 13px; }
-.rc-panel__empty a { color: #9db6ff; }
+.rc-mini__mark {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    background: var(--rc-primary);
+    color: #fff;
+    border-radius: 8px;
+}
+
+.rc-mini__title { flex: 1; min-width: 0; }
+
+.rc-mini__title strong {
+    display: block;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The status is a dot and a word, never a dot alone: green on its own is
+   somebody's guess at what green means. */
+.rc-mini__status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--rc-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rc-mini__status i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--rc-muted); }
+.rc-mini__status--on i { background: var(--rc-green); }
+.rc-mini__status--wait i { background: #d99a2b; }
+.rc-mini__status--off i { background: var(--rc-danger); }
+
+.rc-mini__tools { display: flex; align-items: center; gap: 1px; }
+.rc-mini__body,
+.rc-mini__page { flex: 1; min-height: 0; display: flex; }
+
+/* The full chat, inside the panel rather than on a page of its own: its own
+   frame and height would be a second frame inside this one. */
+.rc-mini__page > .rc-page {
+    flex: 1;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.rc-mini__pane {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.rc-mini__search { flex: none; padding: 10px 12px 8px; }
+.rc-mini__filters { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px 8px; }
+.rc-mini__order { position: relative; }
+
+.rc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--rc-hover);
+    border: 1px solid var(--rc-line);
+    border-radius: 999px;
+    color: var(--rc-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rc-chip:hover { color: var(--rc-text); }
+.rc-chip--on { background: var(--rc-primary-soft); border-color: #c9d8ff; color: var(--rc-primary); }
+
+.rc-menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 4px);
+    z-index: 3;
+    min-width: 148px;
+    padding: 4px;
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-line);
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgb(17 27 46 / 14%);
+}
+
+.rc-menu--up { left: auto; right: 0; top: auto; bottom: calc(100% + 8px); }
+
+.rc-menu button {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    background: none;
+    border: 0;
+    border-radius: 7px;
+    text-align: left;
+    color: var(--rc-text);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.rc-menu button:hover { background: var(--rc-hover); }
+
+.rc-mini__list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 60px; }
+.rc-mini__list::-webkit-scrollbar { width: 8px; }
+.rc-mini__list::-webkit-scrollbar-thumb { background: #dce3ee; border-radius: 4px; }
+
+.rc-mini__group { padding-top: 4px; }
+
+.rc-mini__groupName {
+    padding: 8px 14px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--rc-muted);
+}
+
+.rc-mini__note { padding: 22px 20px; text-align: center; font-size: 12.5px; line-height: 1.55; color: var(--rc-muted); }
+
+/* The rows here are on white. The page's rail is navy and shares the class,
+   so the light reading of a row belongs to the panel and not to the row. */
+.rc-mini__pane .rc-row {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    color: var(--rc-text);
+    border-radius: 0;
+}
+
+.rc-mini__pane .rc-row:hover { background: var(--rc-hover); color: var(--rc-text); }
+.rc-mini__pane .rc-row__open {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 4px 8px 14px;
+    background: none;
+    border: 0;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.rc-mini__pane .rc-row--thread { padding: 8px 14px; gap: 9px; }
+.rc-mini__pane .rc-row__preview { color: var(--rc-muted); }
+.rc-mini__pane .rc-row__icon { color: var(--rc-muted); }
+.rc-mini__pane .rc-row--unread .rc-row__title { color: var(--rc-text); }
+
+/* The pin is on every row, faint until somebody looks at that row: a pin
+   hidden in a menu is a pin nobody finds, and five bright pins in a column
+   are five things shouting at somebody reading a list. */
+.rc-row__pin {
+    width: 30px;
+    flex: none;
+    align-self: stretch;
+    display: grid;
+    place-items: center;
+    background: none;
+    border: 0;
+    color: transparent;
+    cursor: pointer;
+}
+
+.rc-row:hover .rc-row__pin { color: #b7c2d6; }
+.rc-row__pin:hover { color: var(--rc-text); }
+.rc-row__pin--on,
+.rc-row:hover .rc-row__pin--on { color: var(--rc-primary); }
+
+.rc-new {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    z-index: 2;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    background: var(--rc-primary);
+    color: #fff;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: 0 6px 18px rgb(36 87 245 / 34%);
+    cursor: pointer;
+}
+
+.rc-new:hover { filter: brightness(1.07); }
+.rc-mini__new { position: static; }
+
+/*
+ * On a phone the bar is the width of the phone.
+ *
+ * A 372px column with a gutter either side covers most of a small screen
+ * anyway, and leaves it looking like a window that failed to open properly
+ * rather than the strip of tabs it is. Floating boxes go: there is no room to
+ * read two conversations side by side, and the panel already reads one.
+ */
+@media (max-width: 520px) {
+    .rc-dock,
+    .rc-dock--wide { left: 0; right: 0; width: auto; max-width: none; }
+    .rc-bar { border-radius: 0; border-inline: 0; }
+    .rc-mini { border-radius: 0; border-inline: 0; height: min(560px, 70vh); }
+    .rc-dock--wide .rc-mini { height: calc(100vh - 56px); }
+    .rc-boxes { display: none; }
+    .rc-tab__label { font-size: 10.5px; }
+}
+
+/* ------------------------------------------------------------- a thread */
+
+.rc-thread { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rc-thread__list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 0 4px; }
+.rc-thread__parent,
+.rc-thread__reply { display: flex; gap: 9px; padding: 6px 14px; }
+.rc-thread__parent { padding-bottom: 10px; }
+.rc-thread__reply:hover { background: var(--rc-hover); }
+
+.rc-thread__rule {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--rc-muted);
+}
+
+.rc-thread__rule::after { content: ''; flex: 1; height: 1px; background: var(--rc-line); }
+.rc-composer--thread { padding: 0 12px 12px; }
+
+/* --------------------------------------------------------------- boxes */
+
+/* Beside the bar rather than over it: a conversation somebody popped out to
+   read next to another one should not cover the tabs that opened it. */
+.rc-boxes {
+    position: fixed;
+    left: 408px;
+    bottom: 0;
+    z-index: 59;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    color: var(--rc-text);
+    font-size: 14px;
+}
 
 .rc-box {
     width: 336px;
@@ -751,6 +1042,8 @@
 .rc-icon-button--sm { width: 26px; height: 26px; border-radius: 7px; }
 .rc-icon-button--dark { color: #ffffffa6; }
 .rc-icon-button--dark:hover { background: #ffffff1f; color: #fff; }
+.rc-icon-button--on { color: var(--rc-primary); }
+.rc-icon-button--on:hover { color: var(--rc-primary); }
 .rc-icon-button--call { color: var(--rc-green); }
 .rc-icon-button--call:hover { background: #12b98b1f; color: var(--rc-green); }
 .rc-icon-button--send { background: var(--rc-primary); color: #fff; }

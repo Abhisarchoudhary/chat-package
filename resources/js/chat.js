@@ -98,6 +98,14 @@ export function registerChat(Alpine) {
         const last = said[said.length - 1];
         const unread = channel.countUnread?.() ?? 0;
 
+        /* How busy it is, not how recent: the messages in the window we hold
+           over the days that window spans. It is the window and not all of
+           history, which is why the sort it feeds is called "most active" and
+           not "frequent" — we can honestly measure the first. */
+        const from = said[0] ? new Date(said[0].created_at).getTime() : 0;
+        const to = last ? new Date(last.created_at).getTime() : 0;
+        const days = Math.max(1, (to - from) / 86400000);
+
         return {
             cid: channel.cid,
             type: channel.type,
@@ -124,6 +132,10 @@ export function registerChat(Alpine) {
             other: others[0]?.name ?? null,
             email: others.length === 1 ? (others[0].email ?? null) : null,
             unread,
+            /* Somebody's own pin, kept by Stream against their membership, so
+               it follows them to their phone rather than living in this tab. */
+            pinned: !!channel.state?.membership?.pinned_at,
+            activity: said.length / days,
             preview: last
                 ? (last.user?.id === me ? 'You: ' : '') + (last.text || (last.attachments?.length ? 'Sent a file' : ''))
                 : 'No messages yet',
@@ -142,6 +154,10 @@ export function registerChat(Alpine) {
             userName: message.user?.name ?? message.user?.id ?? 'Someone',
             userImage: message.user?.image ?? null,
             at: message.created_at ? new Date(message.created_at).getTime() : Date.now(),
+            /* A message with replies is the top of a thread, and the count is
+               what the line under it offers to open. */
+            replies: message.reply_count ?? 0,
+            parentId: message.parent_id ?? null,
             attachments: (message.attachments ?? []).map((attachment) => ({
                 kind: attachment.type === 'image' ? 'image' : 'file',
                 url: attachment.image_url ?? attachment.asset_url ?? null,
@@ -187,6 +203,23 @@ export function registerChat(Alpine) {
 
         /** What the page is showing. */
         active: null,
+
+        /**
+         * Pins pressed since the page loaded, by cid.
+         *
+         * The truth is the membership `snapshot()` reads, which is Stream's and
+         * therefore the same on somebody's phone. This map is what has been
+         * pressed here, and it wins over that truth until the next query — so
+         * a pin moves when it is pressed rather than a round trip later.
+         */
+        pinnedOf: {},
+
+        /** Threads this person is in, flattened to what a row draws. */
+        threads: [],
+        threadsReady: false,
+
+        /** The thread being read, if any. */
+        thread: null,
 
         /**
          * Connecting, once.
@@ -304,6 +337,22 @@ export function registerChat(Alpine) {
                     }
                 }
 
+                /*
+                 * A reply in the thread somebody is reading.
+                 *
+                 * Stream sends it as an ordinary new message carrying a
+                 * parent, and it is deliberately not in the channel's own
+                 * messages — so without this the thread only grows when it is
+                 * closed and opened again.
+                 */
+                if (event.type === 'message.new' && event.message?.parent_id && this.thread?.parentId === event.message.parent_id) {
+                    const already = this.thread.replies.some((reply) => reply.id === event.message.id);
+
+                    if (!already) {
+                        this.thread = { ...this.thread, replies: [...this.thread.replies, messageOf(event.message, this.me)] };
+                    }
+                }
+
                 /* Read somewhere else: the same person on their phone, or in
                    another window. Their own account reading it is a read. */
                 if (['message.read', 'notification.mark_read'].includes(event.type) && cid && event.user?.id === this.me) {
@@ -339,6 +388,7 @@ export function registerChat(Alpine) {
                     const conversation = snapshot(channel, this.me);
 
                     conversation.unread = this.unreadOf[conversation.cid] ?? 0;
+                    conversation.pinned = this.pinnedOf[conversation.cid] ?? conversation.pinned;
 
                     return conversation;
                 })
@@ -375,6 +425,133 @@ export function registerChat(Alpine) {
 
         find(cid) {
             return this.conversations.find((conversation) => conversation.cid === cid) ?? null;
+        },
+
+        /* ----------------------------------------------------------- pins */
+
+        /**
+         * Pinning, and putting the pin back if Stream refuses.
+         *
+         * The interface answers immediately because a pin is a small decision
+         * nobody should wait for — but an interface that says "pinned" when
+         * nothing was pinned is worse than a slow one, so a refusal undoes it.
+         */
+        async togglePin(cid) {
+            const channel = this.raw(cid);
+
+            if (!channel) return;
+
+            const on = !this.find(cid)?.pinned;
+
+            this.pinnedOf = { ...this.pinnedOf, [cid]: on };
+            this.refresh();
+
+            try {
+                await (on ? channel.pin() : channel.unpin());
+            } catch {
+                this.pinnedOf = { ...this.pinnedOf, [cid]: !on };
+                this.refresh();
+            }
+        },
+
+        /* -------------------------------------------------------- threads */
+
+        /**
+         * Every thread this person is part of.
+         *
+         * Asked for rather than kept in step: a thread list is something
+         * somebody goes to look at, not something that has to be correct while
+         * nobody is looking. Stream's `Thread` holds a channel, which holds the
+         * client — so, like everything else here, only a flat reading of it
+         * crosses into Alpine.
+         */
+        async loadThreads() {
+            try {
+                const { threads } = await client.queryThreads({ limit: 25, reply_limit: 1 });
+
+                this.threads = threads
+                    .map((thread) => {
+                        const state = thread.state.getLatestValue();
+                        const parent = state.parentMessage;
+                        const last = state.replies[state.replies.length - 1] ?? parent;
+                        const cid = state.channel?.cid ?? null;
+
+                        return {
+                            id: thread.id,
+                            cid,
+                            where: state.channel?.data?.name ?? this.find(cid)?.title ?? 'Conversation',
+                            channel: state.channel?.type ?? 'messaging',
+                            text: parent?.text || (parent?.attachments?.length ? 'Sent a file' : 'A message'),
+                            who: parent?.user?.name ?? parent?.user?.id ?? 'Someone',
+                            replies: state.replyCount ?? 0,
+                            unread: state.read?.[this.me]?.unreadMessageCount ?? 0,
+                            people: (state.participants ?? []).length,
+                            at: last?.created_at ? new Date(last.created_at).getTime() : 0,
+                        };
+                    })
+                    .filter((thread) => thread.cid !== null)
+                    .sort((a, b) => b.at - a.at);
+            } catch {
+                /* Say none rather than leaving a spinner: a thread list that
+                   cannot be fetched is a thread list nobody can act on. */
+                this.threads = [];
+            }
+
+            this.threadsReady = true;
+        },
+
+        /**
+         * Opening a thread: the message that started it and every reply.
+         *
+         * The parent usually comes from the window we already hold, which is
+         * why a thread opens with no round trip when it is opened from the
+         * conversation it is in. From the Threads tab the parent may be older
+         * than that window, so it is fetched.
+         */
+        async openThread(cid, parentId) {
+            this.thread = { cid, parentId, title: this.find(cid)?.title ?? '', loading: true, failed: false, parent: null, replies: [] };
+
+            try {
+                const channel = this.raw(cid);
+                const held = (this.messages[cid] ?? []).find((message) => message.id === parentId);
+                const [answer, parent] = await Promise.all([
+                    channel.getReplies(parentId, { limit: 50 }),
+                    held ? Promise.resolve(held) : client.getMessage(parentId).then((got) => messageOf(got.message, this.me)),
+                ]);
+
+                this.thread = {
+                    cid,
+                    parentId,
+                    title: this.find(cid)?.title ?? '',
+                    loading: false,
+                    failed: false,
+                    parent,
+                    replies: (answer.messages ?? [])
+                        .filter((message) => message.type !== 'deleted')
+                        .map((message) => messageOf(message, this.me)),
+                };
+            } catch {
+                this.thread = { ...this.thread, loading: false, failed: true };
+            }
+        },
+
+        closeThread() {
+            this.thread = null;
+        },
+
+        /**
+         * A reply that stays in its thread.
+         *
+         * `show_in_channel: false` is the whole point of a thread: a side
+         * conversation about one message does not push the room's own
+         * conversation up the screen.
+         */
+        async reply(cid, parentId, text) {
+            const sent = await this.raw(cid)?.sendMessage({ text, parent_id: parentId, show_in_channel: false });
+
+            if (this.thread?.parentId === parentId && sent?.message) {
+                this.thread = { ...this.thread, replies: [...this.thread.replies, messageOf(sent.message, this.me)] };
+            }
         },
 
         initials: initialsOf,
@@ -694,38 +871,298 @@ export function registerChat(Alpine) {
         },
     }));
 
-    /** The launcher, the list behind it, and the floating boxes. */
-    Alpine.data('chatDock', () => ({
-        panel: false,
-        search: '',
+    /**
+     * The bar along the bottom of every page, and the panel above it.
+     *
+     * Chat is a bar and not a page, because the point of it is answering
+     * somebody while doing something else: a page means leaving what you were
+     * doing and then finding your way back to it. The five tabs are five
+     * questions somebody actually has -- what did I keep, who is talking to
+     * me, which rooms am I in, what am I replying to, who else is here -- and
+     * each answers in the same column, so nothing moves under the cursor.
+     *
+     * Expanded, the same panel fills the window and shows the full chat, which
+     * is why there is no separate chat page that could be out of step with it.
+     */
+    Alpine.data('chatBar', () => ({
+        /** Which tab is open. Null is the bar on its own. */
+        tab: null,
 
-        /** The chat page is showing, so the launcher and the boxes stand down. */
-        onPage: false,
+        /** Filling the window: the whole chat rather than a column. */
+        wide: false,
+
+        /** A conversation being read inside the panel. */
+        reading: null,
+
+        search: '',
+        order: 'recent',
+        unreadOnly: false,
+        ordering: false,
+        adding: false,
+
+        /** The directory, once somebody asks for it. */
+        people: null,
+        peopleFailed: false,
+        searching: null,
 
         init() {
             this.$store.chat.connect();
 
-            const look = () => {
-                this.onPage = onChatPage();
+            /*
+             * Somewhere else asking for chat: the sidebar's own entry, which
+             * opens this expanded rather than navigating to a page that would
+             * be a second copy of it.
+             */
+            window.addEventListener('chat:open', (event) => {
+                this.wide = !! event.detail?.wide;
+                this.tab = event.detail?.tab ?? this.tab ?? 'chats';
+                this.load();
+            });
 
-                if (this.onPage) this.panel = false;
-            };
+            window.addEventListener('chat:close', () => this.close());
 
-            look();
+            /* Escape closes what is in front of somebody, innermost first. */
+            window.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape' || this.tab === null) return;
 
-            /* The dock survives a page change, so it has to notice one. */
-            document.addEventListener('livewire:navigated', look);
+                if (this.$store.chat.thread) return this.$store.chat.closeThread();
+                if (this.reading) return (this.reading = null);
+                if (this.wide) return (this.wide = false);
+
+                this.close();
+            });
         },
 
-        get conversations() {
-            const term = this.search.trim().toLowerCase();
-            const all = this.$store.chat.conversations;
+        /* ------------------------------------------------------- the tabs */
 
-            return term === '' ? all : all.filter((conversation) => conversation.title.toLowerCase().includes(term));
+        show(tab) {
+            /* Pressing the tab that is already open closes the panel, which is
+               what a bar is for: one press out, one press back. */
+            if (this.tab === tab && ! this.wide) {
+                return this.close();
+            }
+
+            this.tab = tab;
+            this.reading = null;
+            this.search = '';
+            this.$store.chat.closeThread();
+            this.load();
+        },
+
+        close() {
+            this.tab = null;
+            this.wide = false;
+            this.reading = null;
+            this.adding = false;
+            this.$store.chat.closeThread();
+        },
+
+        /** What a tab needs that is not already here. */
+        load() {
+            if (this.tab === 'threads') this.$store.chat.loadThreads();
+            if (this.tab === 'people' && this.people === null) this.loadPeople();
+        },
+
+        async loadPeople() {
+            this.peopleFailed = false;
+
+            try {
+                const answer = await this.$store.chat.directory(this.search.trim());
+
+                this.people = Object.entries(answer.groups ?? {}).map(([key, group]) => ({
+                    key,
+                    label: group.label,
+                    people: group.people ?? [],
+                }));
+            } catch {
+                this.people = [];
+                this.peopleFailed = true;
+            }
+        },
+
+        /**
+         * Searching the directory, which is Stream's and not this browser's,
+         * so it is one request behind the typing rather than one per keystroke.
+         */
+        searchPeople() {
+            clearTimeout(this.searching);
+            this.searching = setTimeout(() => this.loadPeople(), 250);
+        },
+
+        /* ------------------------------------------------------ the lists */
+
+        get rows() {
+            const term = this.search.trim().toLowerCase();
+
+            let rows = this.$store.chat.conversations;
+
+            if (this.tab === 'pins') rows = rows.filter((row) => row.pinned);
+            if (this.tab === 'chats') rows = rows.filter((row) => row.type !== 'team');
+            if (this.tab === 'channels') rows = rows.filter((row) => row.type === 'team');
+
+            if (this.unreadOnly) rows = rows.filter((row) => row.unread > 0);
+            if (term !== '') rows = rows.filter((row) => row.title.toLowerCase().includes(term));
+
+            return this.order === 'active' ? [...rows].sort((a, b) => b.activity - a.activity) : rows;
+        },
+
+        get threads() {
+            const term = this.search.trim().toLowerCase();
+            const rows = this.$store.chat.threads;
+
+            if (term === '') return rows;
+
+            return rows.filter((row) => `${row.text} ${row.where} ${row.who}`.toLowerCase().includes(term));
+        },
+
+        /** The directory, minus anybody the filters have ruled out. */
+        get groups() {
+            const rows = (this.people ?? []).map((group) => ({
+                ...group,
+                people: this.unreadOnly ? group.people.filter((person) => person.online) : group.people,
+            }));
+
+            return rows.filter((group) => group.people.length > 0);
+        },
+
+        /** The label on the order button says what it sorted by. */
+        get orderLabel() {
+            return this.order === 'active' ? 'Most active' : 'Recent';
+        },
+
+        /* ------------------------------------------------- opening things */
+
+        /** Reading a conversation without leaving the panel. */
+        open(cid) {
+            this.reading = cid;
+            this.$store.chat.markRead(cid);
+        },
+
+        back() {
+            if (this.$store.chat.thread) return this.$store.chat.closeThread();
+
+            this.reading = null;
+        },
+
+        /** Out of the panel and into a box, so two can be read at once. */
+        popOut(cid) {
+            this.$store.chat.openBox(cid);
+            this.reading = null;
+            this.wide = false;
+        },
+
+        async message(userId) {
+            const cid = await this.$store.chat.messagePerson(userId);
+
+            this.tab = 'chats';
+            this.open(cid);
+        },
+
+        newChannel() {
+            this.adding = false;
+            this.wide = true;
+            this.tab = 'channels';
+
+            /* The create form lives on the full chat, which is what `wide`
+               shows -- tell it to open the form once it is there. */
+            this.$nextTick(() => window.dispatchEvent(new CustomEvent('chat:new-channel')));
         },
 
         get boxes() {
             return this.$store.chat.open.filter((cid) => this.$store.chat.find(cid));
+        },
+
+        /** What the panel says it is showing, which is never just "Chat". */
+        get heading() {
+            if (this.$store.chat.thread) return 'Thread';
+            if (this.reading) return this.$store.chat.find(this.reading)?.title ?? 'Conversation';
+
+            return 'Chat';
+        },
+
+        get subheading() {
+            if (this.$store.chat.thread) return `in ${this.$store.chat.thread.title}`;
+            if (this.reading) return this.$store.chat.subtitle(this.$store.chat.find(this.reading));
+
+            return this.status.label;
+        },
+
+        /**
+         * The number on a tab.
+         *
+         * Unread, never a total: a tab that says "12" when twelve channels
+         * exist and nothing has happened in any of them is a badge nobody can
+         * ever clear, so people stop reading badges.
+         */
+        countFor(tab) {
+            const unread = (rows) => rows.reduce((total, row) => total + row.unread, 0);
+            const rows = this.$store.chat.conversations;
+
+            if (tab === 'pins') return unread(rows.filter((row) => row.pinned));
+            if (tab === 'chats') return unread(rows.filter((row) => row.type !== 'team'));
+            if (tab === 'channels') return unread(rows.filter((row) => row.type === 'team'));
+            if (tab === 'threads') return unread(this.$store.chat.threads);
+
+            return 0;
+        },
+
+        /** Where the bar stands: connected, trying, or not available here. */
+        get status() {
+            if (this.$store.chat.failed) return { label: 'Unavailable', tone: 'off' };
+            if (! this.$store.chat.ready) return { label: 'Connecting', tone: 'wait' };
+
+            return { label: 'Available', tone: 'on' };
+        },
+    }));
+
+    /**
+     * A thread: the message that started it, its replies, and a box to add one.
+     *
+     * Separate from `chatConversation` because a thread is not a conversation.
+     * It has no unread count of its own to clear, no typing indicator worth the
+     * traffic, and its replies deliberately never appear in the room -- which
+     * is the only reason to start one instead of just answering.
+     */
+    Alpine.data('chatThread', () => ({
+        text: '',
+        sending: false,
+        error: null,
+
+        get thread() {
+            return this.$store.chat.thread;
+        },
+
+        async send() {
+            const text = this.text.trim();
+            const thread = this.thread;
+
+            if (text === '' || this.sending || ! thread) return;
+
+            this.sending = true;
+            this.text = '';
+            this.error = null;
+
+            try {
+                await this.$store.chat.reply(thread.cid, thread.parentId, text);
+                this.scroll();
+            } catch {
+                this.error = 'That reply did not send.';
+                this.text = text;
+            } finally {
+                this.sending = false;
+            }
+        },
+
+        scroll() {
+            this.$nextTick(() => {
+                const list = this.$refs.replies;
+
+                if (list) list.scrollTop = list.scrollHeight;
+            });
+        },
+
+        at(message) {
+            return new Date(message.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         },
     }));
 
@@ -746,6 +1183,10 @@ export function registerChat(Alpine) {
 
         init() {
             this.$store.chat.connect();
+
+            /* The bar's + is pressed where the create form is not: it expands
+               the panel to here and then asks for the form. */
+            window.addEventListener('chat:new-channel', () => this.pick('channel'));
         },
 
         get conversations() {

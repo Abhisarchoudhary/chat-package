@@ -1,5 +1,3 @@
-import { StreamChat } from 'stream-chat';
-
 /**
  * Chat, as the three portals run it.
  *
@@ -70,6 +68,21 @@ async function ask(url, options = {}) {
  * The dock is for the rest of the portal. On the chat page it would be a
  * small window of a conversation next to the large one already showing it.
  */
+/**
+ * After the page somebody asked for has finished.
+ *
+ * `requestIdleCallback` where there is one; a timeout where there is not,
+ * which is Safari. Either way the work happens -- it simply stops competing
+ * with the page for the first second of it.
+ */
+function whenIdle(work) {
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(work, { timeout: 4000 });
+    } else {
+        setTimeout(work, 1200);
+    }
+}
+
 function onChatPage() {
     return !!document.querySelector('.rc-page');
 }
@@ -239,7 +252,16 @@ export function registerChat(Alpine) {
         },
 
         async begin() {
-            const session = await ask(ENDPOINTS.token, { method: 'POST' });
+            /*
+             * Stream's client is fetched here rather than imported at the top,
+             * for the same reason as the call client: imported normally it is
+             * part of the bundle every page loads, and chat is not what
+             * somebody opening a contact record is waiting for.
+             */
+            const [{ StreamChat }, session] = await Promise.all([
+                import('stream-chat'),
+                ask(ENDPOINTS.token, { method: 'POST' }),
+            ]);
 
             /* Kept so the call client does not go and ask for a second one. */
             this.session = session;
@@ -274,11 +296,13 @@ export function registerChat(Alpine) {
             this.active ??= this.conversations[0]?.cid ?? null;
             this.restoreOpen();
 
-            /* Build the call client now, while nobody is waiting. Doing it on
-               the first press of the call button puts a vendor handshake
-               between somebody deciding to call and anything happening — long
-               enough that they press the button again. */
-            Alpine.store('calls')?.ready?.().catch(() => {});
+            /*
+             * Build the call client while nobody is waiting -- but genuinely
+             * while nobody is waiting. It has to exist before a call comes in,
+             * or the phone never rings; it does not have to exist before the
+             * page somebody actually asked for has finished drawing.
+             */
+            whenIdle(() => Alpine.store('calls')?.ready?.().catch(() => {}));
         },
 
         /** Keep the real channel here, out of anything reactive. */
@@ -564,7 +588,9 @@ export function registerChat(Alpine) {
                 return `${conversation.members} ${conversation.members === 1 ? 'member' : 'members'}`;
             }
 
-            return conversation.online ? 'Online' : (conversation.email ?? 'Direct message');
+            /* Not their address: a directory of colleagues does not need to
+               publish everybody's email on every row to say who they are. */
+            return conversation.online ? 'Online' : 'Offline';
         },
 
         /* ------------------------------------------------------- the dock */
@@ -891,9 +917,6 @@ export function registerChat(Alpine) {
         /** Filling the window: the whole chat rather than a column. */
         wide: false,
 
-        /** A conversation being read inside the panel. */
-        reading: null,
-
         search: '',
         order: 'recent',
         unreadOnly: false,
@@ -906,14 +929,14 @@ export function registerChat(Alpine) {
         searching: null,
 
         init() {
-            this.$store.chat.connect();
+            /* Connecting is a websocket and a vendor handshake, and nobody
+               opened the portal to look at the chat bar. It happens once the
+               page they did ask for has drawn. */
+            whenIdle(() => this.$store.chat.connect());
 
-            /*
-             * Somewhere else asking for chat: the sidebar's own entry, which
-             * opens this expanded rather than navigating to a page that would
-             * be a second copy of it.
-             */
+            /* Somewhere else asking for chat. */
             window.addEventListener('chat:open', (event) => {
+                this.$store.chat.connect();
                 this.wide = !! event.detail?.wide;
                 this.tab = event.detail?.tab ?? this.tab ?? 'chats';
                 this.load();
@@ -921,12 +944,18 @@ export function registerChat(Alpine) {
 
             window.addEventListener('chat:close', () => this.close());
 
+            /*
+             * Full screen means full screen: the page underneath stops
+             * scrolling, so a wheel over the chat does not move a list nobody
+             * can see behind it.
+             */
+            this.$watch('wide', (value) => document.body.classList.toggle('rc-locked', value));
+
             /* Escape closes what is in front of somebody, innermost first. */
             window.addEventListener('keydown', (event) => {
                 if (event.key !== 'Escape' || this.tab === null) return;
 
                 if (this.$store.chat.thread) return this.$store.chat.closeThread();
-                if (this.reading) return (this.reading = null);
                 if (this.wide) return (this.wide = false);
 
                 this.close();
@@ -936,6 +965,8 @@ export function registerChat(Alpine) {
         /* ------------------------------------------------------- the tabs */
 
         show(tab) {
+            this.$store.chat.connect();
+
             /* Pressing the tab that is already open closes the panel, which is
                what a bar is for: one press out, one press back. */
             if (this.tab === tab && ! this.wide) {
@@ -943,7 +974,6 @@ export function registerChat(Alpine) {
             }
 
             this.tab = tab;
-            this.reading = null;
             this.search = '';
             this.$store.chat.closeThread();
             this.load();
@@ -952,7 +982,6 @@ export function registerChat(Alpine) {
         close() {
             this.tab = null;
             this.wide = false;
-            this.reading = null;
             this.adding = false;
             this.$store.chat.closeThread();
         },
@@ -1032,23 +1061,24 @@ export function registerChat(Alpine) {
 
         /* ------------------------------------------------- opening things */
 
-        /** Reading a conversation without leaving the panel. */
+        /**
+         * A conversation opens in its own window, beside the panel.
+         *
+         * Never inside it: the panel is the summary -- the lists, the pins, the
+         * people -- and a conversation read in the same column replaces the
+         * thing somebody was using to find the next one. Two windows is also
+         * two conversations at once, which is the point of a dock.
+         */
         open(cid) {
-            this.reading = cid;
-            this.$store.chat.markRead(cid);
+            this.$store.chat.openBox(cid);
+
+            /* Expanded, the full chat is already showing it; shrink back so
+               the window that just opened is not behind the panel. */
+            this.wide = false;
         },
 
         back() {
-            if (this.$store.chat.thread) return this.$store.chat.closeThread();
-
-            this.reading = null;
-        },
-
-        /** Out of the panel and into a box, so two can be read at once. */
-        popOut(cid) {
-            this.$store.chat.openBox(cid);
-            this.reading = null;
-            this.wide = false;
+            this.$store.chat.closeThread();
         },
 
         async message(userId) {
@@ -1072,19 +1102,12 @@ export function registerChat(Alpine) {
             return this.$store.chat.open.filter((cid) => this.$store.chat.find(cid));
         },
 
-        /** What the panel says it is showing, which is never just "Chat". */
         get heading() {
-            if (this.$store.chat.thread) return 'Thread';
-            if (this.reading) return this.$store.chat.find(this.reading)?.title ?? 'Conversation';
-
-            return 'Chat';
+            return this.$store.chat.thread ? 'Thread' : 'Chat';
         },
 
         get subheading() {
-            if (this.$store.chat.thread) return `in ${this.$store.chat.thread.title}`;
-            if (this.reading) return this.$store.chat.subtitle(this.$store.chat.find(this.reading));
-
-            return this.status.label;
+            return this.$store.chat.thread ? `in ${this.$store.chat.thread.title}` : this.status.label;
         },
 
         /**

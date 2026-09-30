@@ -84,11 +84,7 @@
                         :class="[$store.chat.active === conversation.cid && 'rc-row--on', conversation.unread > 0 && 'rc-row--unread']"
                         @click="open(conversation.cid)"
                     >
-                        <span class="rc-avatar rc-avatar--sm">
-                            <template x-if="conversation.image"><img :src="conversation.image" alt=""></template>
-                            <template x-if="! conversation.image"><span x-text="$store.chat.initials(conversation.title)"></span></template>
-                            <template x-if="conversation.online"><span class="rc-dot"></span></template>
-                        </span>
+                        <x-chat::avatar name="conversation.title" image="conversation.image" online="conversation.online" size="sm" />
 
                         <span class="rc-row__title" x-text="conversation.title"></span>
 
@@ -122,11 +118,7 @@
                     </template>
 
                     <template x-if="current.type !== 'team'">
-                        <span class="rc-avatar">
-                            <template x-if="current.image"><img :src="current.image" alt=""></template>
-                            <template x-if="! current.image"><span x-text="$store.chat.initials(current.title)"></span></template>
-                            <template x-if="current.online"><span class="rc-dot"></span></template>
-                        </span>
+                        <x-chat::avatar name="current.title" image="current.image" online="current.online" />
                     </template>
 
                     {{-- The name, and under it who is in here. The count is the
@@ -140,10 +132,7 @@
                     <template x-if="current.type === 'team'">
                         <button type="button" class="rc-faces" @click="details = ! details" title="{{ __('Who is in here') }}">
                             <template x-for="person in current.people.slice(0, 4)" :key="person.id">
-                                <span class="rc-avatar rc-avatar--sm">
-                                    <template x-if="person.image"><img :src="person.image" alt=""></template>
-                                    <template x-if="! person.image"><span x-text="$store.chat.initials(person.name)"></span></template>
-                                </span>
+                                <x-chat::avatar name="person.name" image="person.image" size="sm" />
                             </template>
 
                             <template x-if="current.members > 4">
@@ -210,11 +199,7 @@
                 <div class="rc-details__list">
                     <template x-for="person in current.people" :key="person.id">
                         <div class="rc-person rc-person--flat">
-                            <span class="rc-avatar rc-avatar--sm">
-                                <template x-if="person.image"><img :src="person.image" alt=""></template>
-                                <template x-if="! person.image"><span x-text="$store.chat.initials(person.name)"></span></template>
-                                <template x-if="person.online"><span class="rc-dot"></span></template>
-                            </span>
+                            <x-chat::avatar name="person.name" image="person.image" online="person.online" size="sm" />
 
                             <span class="rc-person__name">
                                 <strong x-text="person.name + (person.you ? ' {{ __('(you)') }}' : '')"></strong>
@@ -283,11 +268,7 @@
                                     :disabled="already(person.id)"
                                     @click="picking === 'person' ? messagePerson(person.id) : toggle(person.id)"
                                 >
-                                    <span class="rc-avatar rc-avatar--sm">
-                                        <template x-if="person.image"><img :src="person.image" alt=""></template>
-                                        <template x-if="! person.image"><span x-text="$store.chat.initials(person.name)"></span></template>
-                                        <template x-if="person.online"><span class="rc-dot"></span></template>
-                                    </span>
+                                    <x-chat::avatar name="person.name" image="person.image" online="person.online" size="sm" />
 
                                     <span class="rc-person__name">
                                         <strong x-text="person.name"></strong>

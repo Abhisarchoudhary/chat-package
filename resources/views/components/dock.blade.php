@@ -5,8 +5,14 @@
     somebody while doing something else — and a page means leaving the record
     you were working on and then finding your way back to it. The five tabs are
     five questions somebody actually has (what did I keep, who is talking to
-    me, which rooms am I in, what am I replying to, who else is here), and each
-    answers in the same column above the bar, so nothing moves under the cursor.
+    me, which rooms am I in, what am I replying to, who else is here).
+
+    **The panel is the summary; a conversation is its own window.** Everything
+    above the bar is lists — pins, chats, channels, threads, people — and
+    pressing one opens a window beside the panel rather than replacing the list
+    inside it. That is what makes the panel worth having: it is how somebody
+    finds the next conversation, so reading one must not close it. Two windows
+    is also two conversations at once.
 
     Expanded, the same panel fills the window and shows the full chat. That is
     deliberately the *same* panel: a separate chat page would be a second
@@ -32,16 +38,13 @@
 {{-- The call card rings everywhere, whatever the bar is showing. --}}
 <x-chat::call />
 
-{{-- Boxes, for reading two conversations at once. They begin after the bar's
-     own column so they never sit on top of it. --}}
+{{-- Conversation windows, beginning after the bar's own column so they never
+     sit on top of the lists that opened them. --}}
 <div class="rc-boxes">
     <template x-for="cid in boxes" :key="cid">
         <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded">
-                <span class="rc-avatar rc-avatar--sm">
-                    <template x-if="$store.chat.find(cid)?.image"><img :src="$store.chat.find(cid).image" alt=""></template>
-                    <template x-if="! $store.chat.find(cid)?.image"><span x-text="$store.chat.initials($store.chat.find(cid)?.title)"></span></template>
-                </span>
+                <x-chat::avatar name="$store.chat.find(cid)?.title" image="$store.chat.find(cid)?.image" size="sm" />
 
                 <span class="rc-box__title">
                     <strong x-text="$store.chat.find(cid)?.title"></strong>
@@ -58,6 +61,16 @@
                         <x-chat::icon name="phone" size="16" />
                     </button>
                 </template>
+
+                <button
+                    type="button"
+                    class="rc-icon-button rc-icon-button--dark"
+                    :class="$store.chat.find(cid)?.pinned && 'rc-icon-button--on'"
+                    :title="$store.chat.find(cid)?.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
+                    @click.stop="$store.chat.togglePin(cid)"
+                >
+                    <x-chat::icon name="pin" size="16" />
+                </button>
 
                 <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="folded = ! folded" :title="folded ? '{{ __('Open') }}' : '{{ __('Minimise') }}'">
                     <template x-if="folded"><x-chat::icon name="chevron-up" size="16" /></template>
@@ -76,59 +89,29 @@
     </template>
 </div>
 
-<div class="rc-dock" :class="wide && 'rc-dock--wide'">
+<div class="rc-dock" :class="{ 'rc-dock--wide': wide, 'rc-dock--open': tab !== null }">
     {{-- Everything a tab opens, above the bar. --}}
     <div class="rc-mini" x-show="tab !== null" x-transition.opacity.duration.120ms>
         <header class="rc-mini__head">
             {{-- Back where there is somewhere to go back to, and the mark
                  where there is not: the same slot, so the title never moves. --}}
-            <template x-if="reading || $store.chat.thread">
+            <template x-if="$store.chat.thread">
                 <button type="button" class="rc-icon-button" @click="back()" title="{{ __('Back') }}">
                     <x-chat::icon name="back" size="17" />
                 </button>
             </template>
 
-            <template x-if="! reading && ! $store.chat.thread">
-                <span class="rc-mini__mark"><x-chat::icon name="message" size="16" /></span>
+            <template x-if="! $store.chat.thread">
+                <span class="rc-mini__mark"><x-chat::icon name="message" size="15" /></span>
             </template>
 
             <span class="rc-mini__title">
                 <strong x-text="heading"></strong>
                 <span class="rc-mini__status" :class="`rc-mini__status--${status.tone}`">
-                    <template x-if="! reading && ! $store.chat.thread"><i></i></template>
+                    <template x-if="! $store.chat.thread"><i></i></template>
                     <span x-text="subheading"></span>
                 </span>
             </span>
-
-            {{-- A conversation being read gets what a conversation needs. --}}
-            <template x-if="reading && ! $store.chat.thread">
-                <span class="rc-mini__tools">
-                    <template x-if="$store.chat.abilities['call']">
-                        <button
-                            type="button"
-                            class="rc-icon-button"
-                            title="{{ __('Start a call') }}"
-                            @click="$store.calls.start(reading, $store.chat.find(reading)?.memberIds ?? [], $store.chat.find(reading)?.title)"
-                        >
-                            <x-chat::icon name="phone" size="16" />
-                        </button>
-                    </template>
-
-                    <button
-                        type="button"
-                        class="rc-icon-button"
-                        :class="$store.chat.find(reading)?.pinned && 'rc-icon-button--on'"
-                        :title="$store.chat.find(reading)?.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
-                        @click="$store.chat.togglePin(reading)"
-                    >
-                        <x-chat::icon name="pin" size="16" />
-                    </button>
-
-                    <button type="button" class="rc-icon-button" @click="popOut(reading)" title="{{ __('Open in its own window') }}">
-                        <x-chat::icon name="pop-out" size="16" />
-                    </button>
-                </span>
-            </template>
 
             <button
                 type="button"
@@ -171,10 +154,7 @@
                                 <div class="rc-thread__list" x-ref="replies">
                                     <template x-if="thread.parent">
                                         <article class="rc-thread__parent">
-                                            <span class="rc-avatar rc-avatar--sm">
-                                                <template x-if="thread.parent.userImage"><img :src="thread.parent.userImage" alt=""></template>
-                                                <template x-if="! thread.parent.userImage"><span x-text="$store.chat.initials(thread.parent.userName)"></span></template>
-                                            </span>
+                                            <x-chat::avatar name="thread.parent.userName" image="thread.parent.userImage" size="sm" />
 
                                             <div>
                                                 <div class="rc-msg__who">
@@ -192,10 +172,7 @@
 
                                     <template x-for="reply in thread.replies" :key="reply.id">
                                         <article class="rc-thread__reply">
-                                            <span class="rc-avatar rc-avatar--sm">
-                                                <template x-if="reply.userImage"><img :src="reply.userImage" alt=""></template>
-                                                <template x-if="! reply.userImage"><span x-text="$store.chat.initials(reply.userName)"></span></template>
-                                            </span>
+                                            <x-chat::avatar name="reply.userName" image="reply.userImage" size="sm" />
 
                                             <div>
                                                 <div class="rc-msg__who">
@@ -239,19 +216,12 @@
                     </div>
                 </template>
 
-                {{-- A conversation, read without leaving the panel. --}}
-                <template x-if="! $store.chat.thread && reading">
-                    <div class="rc-mini__pane">
-                        <x-chat::conversation for="reading" />
-                    </div>
-                </template>
-
                 {{-- Otherwise: whichever list the open tab is for. --}}
-                <template x-if="! $store.chat.thread && ! reading">
+                <template x-if="! $store.chat.thread">
                     <div class="rc-mini__pane">
                         <div class="rc-mini__search">
                             <label class="rc-search rc-search--light">
-                                <x-chat::icon name="search" size="16" />
+                                <x-chat::icon name="search" size="15" />
                                 <input
                                     type="search"
                                     x-model="search"
@@ -303,11 +273,7 @@
                                                 </template>
 
                                                 <template x-if="row.type !== 'team'">
-                                                    <span class="rc-avatar rc-avatar--sm">
-                                                        <template x-if="row.image"><img :src="row.image" alt=""></template>
-                                                        <template x-if="! row.image"><span x-text="$store.chat.initials(row.title)"></span></template>
-                                                        <template x-if="row.online"><span class="rc-dot"></span></template>
-                                                    </span>
+                                                    <x-chat::avatar name="row.title" image="row.image" online="row.online" size="sm" />
                                                 </template>
 
                                                 <span class="rc-row__body">
@@ -327,7 +293,7 @@
                                                 :title="row.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
                                                 @click="$store.chat.togglePin(row.cid)"
                                             >
-                                                <x-chat::icon name="pin" size="15" />
+                                                <x-chat::icon name="pin" size="14" />
                                             </button>
                                         </div>
                                     </template>
@@ -397,16 +363,14 @@
                                             <p class="rc-mini__groupName" x-text="group.label"></p>
 
                                             <template x-for="person in group.people" :key="person.id">
-                                                <button type="button" class="rc-row" @click="message(person.id)">
-                                                    <span class="rc-avatar rc-avatar--sm">
-                                                        <template x-if="person.image"><img :src="person.image" alt=""></template>
-                                                        <template x-if="! person.image"><span x-text="$store.chat.initials(person.name)"></span></template>
-                                                        <template x-if="person.online"><span class="rc-dot"></span></template>
-                                                    </span>
+                                                <button type="button" class="rc-row rc-row--person" @click="message(person.id)">
+                                                    <x-chat::avatar name="person.name" image="person.image" online="person.online" size="sm" />
 
                                                     <span class="rc-row__body">
                                                         <span class="rc-row__title" x-text="person.name"></span>
-                                                        <span class="rc-row__preview" x-text="person.department || person.email || (person.online ? '{{ __('Online') }}' : '{{ __('Offline') }}')"></span>
+                                                        {{-- Their team or whether they are here. Never their
+                                                             address: a colleague list is not a mailing list. --}}
+                                                        <span class="rc-row__preview" x-text="person.department || (person.online ? '{{ __('Online') }}' : '{{ __('Offline') }}')"></span>
                                                     </span>
                                                 </button>
                                             </template>
@@ -443,7 +407,7 @@
                             </div>
 
                             <button type="button" class="rc-new" @click="adding = ! adding" title="{{ __('Start a conversation') }}">
-                                <x-chat::icon name="plus" size="18" />
+                                <x-chat::icon name="plus" size="17" />
                             </button>
                         </div>
                     </div>
@@ -452,8 +416,9 @@
         </template>
     </div>
 
-    {{-- The bar. Five tabs, each with its name written under it: an icon on
-         its own makes somebody press it to find out what it was. --}}
+    {{-- The bar. Icons only, because five words along the bottom of every page
+         is a strip of furniture somebody reads once and then looks past; the
+         name arrives on hover, before it is needed and not before that. --}}
     <nav class="rc-bar" aria-label="{{ __('Chat') }}">
         @foreach ($tabs as $tab)
             <button
@@ -461,10 +426,11 @@
                 class="rc-tab"
                 :class="tab === '{{ $tab['key'] }}' && 'rc-tab--on'"
                 @click="show('{{ $tab['key'] }}')"
+                aria-label="{{ $tab['label'] }}"
                 data-test="chat-tab-{{ $tab['key'] }}"
             >
                 <span class="rc-tab__icon">
-                    <x-chat::icon name="{{ $tab['icon'] }}" size="19" />
+                    <x-chat::icon name="{{ $tab['icon'] }}" size="18" />
 
                     <template x-if="countFor('{{ $tab['key'] }}') > 0">
                         <span class="rc-badge" x-text="countFor('{{ $tab['key'] }}')"></span>

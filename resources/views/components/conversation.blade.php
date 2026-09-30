@@ -23,10 +23,7 @@
                 <div :class="startsRun(index) ? 'rc-msg rc-msg--first' : 'rc-msg'">
                     <div class="rc-msg__gutter">
                         <template x-if="startsRun(index)">
-                            <span class="rc-avatar">
-                                <template x-if="message.userImage"><img :src="message.userImage" :alt="message.userName"></template>
-                                <template x-if="! message.userImage"><span x-text="$store.chat.initials(message.userName)"></span></template>
-                            </span>
+                            <x-chat::avatar name="message.userName" image="message.userImage" />
                         </template>
 
                         <template x-if="! startsRun(index)">

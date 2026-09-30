@@ -1,4 +1,3 @@
-import { StreamVideoClient } from '@stream-io/video-client';
 
 import { headers } from './chat.js';
 
@@ -46,6 +45,17 @@ export function registerCalls(Alpine) {
          */
         ready() {
             this.building ??= (async () => {
+                /*
+                 * The video SDK is fetched here and not at the top of the file.
+                 *
+                 * It is eight hundred kilobytes, and imported normally it lands
+                 * in the bundle every page of the portal loads -- so every list,
+                 * every record and the sign-in screen paid for a call client
+                 * before anybody had made a call. Asked for here, it is fetched
+                 * once, when a call is first wanted or when the browser is idle.
+                 */
+                const { StreamVideoClient } = await import('@stream-io/video-client');
+
                 /* Chat has already been given one; the same person does not
                    need a second token to make a call. */
                 const session = Alpine.store('chat')?.session ?? await fetch('/chat/token', {

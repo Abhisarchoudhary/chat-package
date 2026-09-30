@@ -11,8 +11,10 @@
  * bubbles. Bubbles say "text message"; a day of work reads better as lines.
  */
 
+.rc-chat,
 .rc-page,
 .rc-dock,
+.rc-boxes,
 .rc-call,
 .rc-modal {
     --rc-primary: var(--color-primary, #2457f5);
@@ -439,7 +441,7 @@
     position: relative;
 }
 
-.rc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rc-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .rc-avatar--sm { width: 26px; height: 26px; border-radius: 7px; font-size: 10px; }
 
 .rc-dot {
@@ -466,11 +468,11 @@
 
 .rc-dock {
     position: fixed;
-    left: 20px;
+    left: 0;
     bottom: 0;
     z-index: 60;
-    width: 372px;
-    max-width: calc(100vw - 40px);
+    width: 356px;
+    max-width: 100vw;
     display: flex;
     flex-direction: column;
     font-size: 14px;
@@ -480,11 +482,16 @@
 /* Expanded: the whole chat, which is the same panel wearing the whole window
    rather than a second screen that could disagree with this one. */
 .rc-dock--wide {
-    left: 16px;
-    right: 16px;
+    right: 0;
     width: auto;
     max-width: none;
 }
+
+/*
+ * Full screen means full screen: the page underneath stops scrolling, so a
+ * wheel over the chat does not quietly move a list nobody can see behind it.
+ */
+body.rc-locked { overflow: hidden; }
 
 .rc-bar {
     flex: none;
@@ -492,20 +499,29 @@
     background: var(--rc-surface);
     border: 1px solid var(--rc-line);
     border-bottom: 0;
-    border-radius: 12px 12px 0 0;
+    border-left: 0;
+    border-radius: 0 12px 0 0;
     box-shadow: 0 -2px 20px rgb(17 27 46 / 8%);
-    overflow: hidden;
 }
 
-.rc-mini + .rc-bar { border-radius: 0; box-shadow: none; border-top-color: var(--rc-line); }
+.rc-mini + .rc-bar { border-radius: 0; box-shadow: none; }
+.rc-dock--wide .rc-bar { border-radius: 0; border-right: 0; }
 
+/*
+ * Icons, with the name on hover.
+ *
+ * Five words along the bottom of every page is a strip of furniture: read
+ * once, looked past afterwards, and twice as tall as it needs to be for the
+ * rest of the time. The name arrives when somebody is looking for it — above
+ * the icon, so it never changes the height of the bar.
+ */
 .rc-tab {
+    position: relative;
     flex: 1;
     min-width: 0;
     display: grid;
-    justify-items: center;
-    gap: 3px;
-    padding: 8px 4px 7px;
+    place-items: center;
+    padding: 7px 4px;
     background: none;
     border: 0;
     color: var(--rc-muted);
@@ -517,9 +533,31 @@
 .rc-tab--on,
 .rc-tab--on:hover { background: var(--rc-primary-soft); color: var(--rc-primary); }
 .rc-tab__icon { position: relative; display: grid; place-items: center; }
-.rc-tab__label { font-size: 11px; font-weight: 600; white-space: nowrap; }
-.rc-tab--on .rc-tab__label { font-weight: 700; }
-.rc-tab .rc-badge { position: absolute; top: -7px; left: 10px; }
+.rc-tab .rc-badge { position: absolute; top: -7px; left: 9px; }
+
+.rc-tab__label {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 8px;
+    background: var(--rc-navy);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 90ms;
+}
+
+.rc-tab:hover .rc-tab__label,
+.rc-tab:focus-visible .rc-tab__label { opacity: 1; }
+
+/* With the panel open the name would land on top of it, and the tab it
+   belongs to is already the highlighted one. */
+.rc-dock--open .rc-tab__label { display: none; }
 
 .rc-badge {
     min-width: 18px;
@@ -538,42 +576,43 @@
 .rc-mini {
     display: flex;
     flex-direction: column;
-    height: min(560px, 72vh);
+    height: min(520px, 70vh);
     background: var(--rc-surface);
     border: 1px solid var(--rc-line);
     border-bottom: 0;
-    border-radius: var(--rc-radius) var(--rc-radius) 0 0;
+    border-left: 0;
+    border-radius: 0 var(--rc-radius) 0 0;
     box-shadow: var(--rc-shadow);
     overflow: hidden;
 }
 
-.rc-dock--wide .rc-mini { height: calc(100vh - 70px); }
+.rc-dock--wide .rc-mini { height: calc(100vh - 35px); border-radius: 0; border-right: 0; }
 
 .rc-mini__head {
     flex: none;
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 9px 9px 9px 12px;
+    gap: 8px;
+    padding: 7px 7px 7px 10px;
     border-bottom: 1px solid var(--rc-line);
 }
 
 .rc-mini__mark {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     flex: none;
     display: grid;
     place-items: center;
     background: var(--rc-primary);
     color: #fff;
-    border-radius: 8px;
+    border-radius: 7px;
 }
 
 .rc-mini__title { flex: 1; min-width: 0; }
 
 .rc-mini__title strong {
     display: block;
-    font-size: 14px;
+    font-size: 13.5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -597,7 +636,6 @@
 .rc-mini__status--wait i { background: #d99a2b; }
 .rc-mini__status--off i { background: var(--rc-danger); }
 
-.rc-mini__tools { display: flex; align-items: center; gap: 1px; }
 .rc-mini__body,
 .rc-mini__page { flex: 1; min-height: 0; display: flex; }
 
@@ -621,8 +659,8 @@
     flex-direction: column;
 }
 
-.rc-mini__search { flex: none; padding: 10px 12px 8px; }
-.rc-mini__filters { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px 8px; }
+.rc-mini__search { flex: none; padding: 8px 10px 6px; }
+.rc-mini__filters { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px 6px; }
 .rc-mini__order { position: relative; }
 
 .rc-chip {
@@ -674,14 +712,14 @@
 
 .rc-menu button:hover { background: var(--rc-hover); }
 
-.rc-mini__list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 60px; }
+.rc-mini__list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 56px; }
 .rc-mini__list::-webkit-scrollbar { width: 8px; }
 .rc-mini__list::-webkit-scrollbar-thumb { background: #dce3ee; border-radius: 4px; }
 
 .rc-mini__group { padding-top: 4px; }
 
 .rc-mini__groupName {
-    padding: 8px 14px 4px;
+    padding: 7px 12px 3px;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: .04em;
@@ -689,7 +727,7 @@
     color: var(--rc-muted);
 }
 
-.rc-mini__note { padding: 22px 20px; text-align: center; font-size: 12.5px; line-height: 1.55; color: var(--rc-muted); }
+.rc-mini__note { padding: 20px 18px; text-align: center; font-size: 12.5px; line-height: 1.55; color: var(--rc-muted); }
 
 /* The rows here are on white. The page's rail is navy and shares the class,
    so the light reading of a row belongs to the panel and not to the row. */
@@ -707,8 +745,8 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 8px 4px 8px 14px;
+    gap: 8px;
+    padding: 6px 4px 6px 12px;
     background: none;
     border: 0;
     text-align: left;
@@ -717,7 +755,8 @@
     cursor: pointer;
 }
 
-.rc-mini__pane .rc-row--thread { padding: 8px 14px; gap: 9px; }
+.rc-mini__pane .rc-row--thread,
+.rc-mini__pane .rc-row--person { padding: 6px 12px; gap: 8px; }
 .rc-mini__pane .rc-row__preview { color: var(--rc-muted); }
 .rc-mini__pane .rc-row__icon { color: var(--rc-muted); }
 .rc-mini__pane .rc-row--unread .rc-row__title { color: var(--rc-text); }
@@ -744,11 +783,11 @@
 
 .rc-new {
     position: absolute;
-    right: 14px;
-    bottom: 14px;
+    right: 12px;
+    bottom: 12px;
     z-index: 2;
-    width: 42px;
-    height: 42px;
+    width: 38px;
+    height: 38px;
     display: grid;
     place-items: center;
     background: var(--rc-primary);
@@ -772,12 +811,11 @@
  */
 @media (max-width: 520px) {
     .rc-dock,
-    .rc-dock--wide { left: 0; right: 0; width: auto; max-width: none; }
-    .rc-bar { border-radius: 0; border-inline: 0; }
-    .rc-mini { border-radius: 0; border-inline: 0; height: min(560px, 70vh); }
-    .rc-dock--wide .rc-mini { height: calc(100vh - 56px); }
+    .rc-dock--wide { right: 0; width: auto; max-width: none; }
+    .rc-bar { border-radius: 0; border-right: 0; }
+    .rc-mini { border-radius: 0; border-right: 0; height: min(520px, 68vh); }
+    .rc-dock--wide .rc-mini { height: calc(100vh - 35px); }
     .rc-boxes { display: none; }
-    .rc-tab__label { font-size: 10.5px; }
 }
 
 /* ------------------------------------------------------------- a thread */
@@ -808,7 +846,7 @@
    read next to another one should not cover the tabs that opened it. */
 .rc-boxes {
     position: fixed;
-    left: 408px;
+    left: 364px;
     bottom: 0;
     z-index: 59;
     display: flex;

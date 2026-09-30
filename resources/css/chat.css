@@ -466,12 +466,20 @@
  * top of whatever the page had in that corner. A bar has a place of its own.
  */
 
+/*
+ * `--rc-column` is the portal's to set, not the package's.
+ *
+ * Three portals lay their shells out three ways, and a bar that lines up with
+ * the sidebar in one is a bar that lines up with nothing in the next. Each
+ * sets it beside its own sidebar width; the value here is only what to do
+ * when nobody has said.
+ */
 .rc-dock {
     position: fixed;
     left: 0;
     bottom: 0;
     z-index: 60;
-    width: 356px;
+    width: var(--rc-column, 356px);
     max-width: 100vw;
     display: flex;
     flex-direction: column;
@@ -846,7 +854,7 @@ body.rc-locked { overflow: hidden; }
    read next to another one should not cover the tabs that opened it. */
 .rc-boxes {
     position: fixed;
-    left: 364px;
+    left: calc(var(--rc-column, 356px) + 8px);
     bottom: 0;
     z-index: 59;
     display: flex;

@@ -18,7 +18,7 @@
         'send' => '<path d="M3 10 17 3.5 13 17l-3.5-5L3 10Z" stroke-linejoin="round"/>',
         'close' => '<path d="m5 5 10 10M15 5 5 15" stroke-linecap="round"/>',
         'minimise' => '<path d="M5 10h10" stroke-linecap="round"/>',
-        'expand' => '<path d="M11 4h5v5M16 4l-6.5 6.5M9 16H4v-5M4 16l6.5-6.5" stroke-linecap="round" stroke-linejoin="round"/>',
+        'expand' => '<path d="M7 3.5H5a1.5 1.5 0 0 0-1.5 1.5v2M13 3.5h2A1.5 1.5 0 0 1 16.5 5v2M3.5 13v2A1.5 1.5 0 0 0 5 16.5h2M16.5 13v2a1.5 1.5 0 0 1-1.5 1.5h-2" stroke-linecap="round" stroke-linejoin="round"/>',
         'trash' => '<path d="M4 6h12M8 6V4.5c0-.3.2-.5.5-.5h3c.3 0 .5.2.5.5V6M6.5 6l.6 9c0 .6.5 1 1 1h3.8c.5 0 1-.4 1-1l.6-9" stroke-linecap="round" stroke-linejoin="round"/>',
         'hash' => '<path d="M7.5 3.5 6 16.5M14 3.5l-1.5 13M3.5 7.5h13M3 12.5h13" stroke-linecap="round"/>',
         'people' => '<circle cx="7.5" cy="7" r="2.8"/><path d="M2.6 16c0-2.5 2.2-4.2 4.9-4.2s4.9 1.7 4.9 4.2" stroke-linecap="round"/><path d="M13.5 5.4a2.6 2.6 0 0 1 0 5M14.5 11.9c1.8.4 3 1.8 3 3.6" stroke-linecap="round"/>',
@@ -37,7 +37,7 @@
         'back' => '<path d="M16 10H4.5M9 4.5 4 10l5 5.5" stroke-linecap="round" stroke-linejoin="round"/>',
         'reply' => '<path d="M8 5.5 3.5 10 8 14.5M3.5 10h7.8a5 5 0 0 1 5 5v1" stroke-linecap="round" stroke-linejoin="round"/>',
         'pop-out' => '<path d="M9 4.5H5.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V10M11.5 3.5h5v5M16 4 9.5 10.5" stroke-linecap="round" stroke-linejoin="round"/>',
-        'collapse' => '<path d="M16.5 3.5 11 9M11 3.5V9h5.5M3.5 16.5 9 11M9 16.5V11H3.5" stroke-linecap="round" stroke-linejoin="round"/>',
+        'collapse' => '<path d="M3.5 7h2A1.5 1.5 0 0 0 7 5.5v-2M16.5 7h-2A1.5 1.5 0 0 1 13 5.5v-2M3.5 13h2A1.5 1.5 0 0 1 7 14.5v2M16.5 13h-2a1.5 1.5 0 0 0-1.5 1.5v2" stroke-linecap="round" stroke-linejoin="round"/>',
     ];
 @endphp
 

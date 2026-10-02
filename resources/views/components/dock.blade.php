@@ -59,7 +59,7 @@
                 <template x-if="$store.chat.abilities['call']">
                     <button
                         type="button"
-                        class="rc-icon-button rc-icon-button--dark"
+                        class="rc-icon-button rc-icon-button--sm rc-icon-button--dark"
                         title="{{ __('Start a call') }}"
                         @click.stop="$store.calls.start(cid, $store.chat.find(cid)?.memberIds ?? [], $store.chat.find(cid)?.title)"
                     >
@@ -69,7 +69,7 @@
 
                 <button
                     type="button"
-                    class="rc-icon-button rc-icon-button--dark"
+                    class="rc-icon-button rc-icon-button--sm rc-icon-button--dark"
                     :class="$store.chat.find(cid)?.pinned && 'rc-icon-button--on'"
                     :title="$store.chat.find(cid)?.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
                     @click.stop="$store.chat.togglePin(cid)"
@@ -77,7 +77,7 @@
                     <x-chat::icon name="pin" />
                 </button>
 
-                <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">
+                <button type="button" class="rc-icon-button rc-icon-button--sm rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">
                     <x-chat::icon name="close" />
                 </button>
             </div>
@@ -396,20 +396,6 @@
                             </template>
                         </div>
 
-                        {{-- Starting something, from wherever somebody is. --}}
-                        <div class="rc-mini__new" @click.outside="adding = false">
-                            <div class="rc-menu rc-menu--up" x-show="adding" x-transition.opacity.duration.100ms>
-                                <button type="button" @click="adding = false; show('people')">{{ __('New message') }}</button>
-
-                                <template x-if="$store.chat.abilities['create-channel']">
-                                    <button type="button" @click="newChannel()">{{ __('New channel') }}</button>
-                                </template>
-                            </div>
-
-                            <button type="button" class="rc-new" @click="adding = ! adding" title="{{ __('Start a conversation') }}">
-                                <x-chat::icon name="plus" />
-                            </button>
-                        </div>
                     </div>
                 </template>
             </div>

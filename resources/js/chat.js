@@ -921,7 +921,6 @@ export function registerChat(Alpine) {
         order: 'recent',
         unreadOnly: false,
         ordering: false,
-        adding: false,
 
         /** The directory, once somebody asks for it. */
         people: null,
@@ -982,7 +981,6 @@ export function registerChat(Alpine) {
         close() {
             this.tab = null;
             this.wide = false;
-            this.adding = false;
             this.$store.chat.closeThread();
         },
 
@@ -1086,16 +1084,6 @@ export function registerChat(Alpine) {
 
             this.tab = 'chats';
             this.open(cid);
-        },
-
-        newChannel() {
-            this.adding = false;
-            this.wide = true;
-            this.tab = 'channels';
-
-            /* The create form lives on the full chat, which is what `wide`
-               shows -- tell it to open the form once it is there. */
-            this.$nextTick(() => window.dispatchEvent(new CustomEvent('chat:new-channel')));
         },
 
         get boxes() {
@@ -1207,9 +1195,6 @@ export function registerChat(Alpine) {
         init() {
             this.$store.chat.connect();
 
-            /* The bar's + is pressed where the create form is not: it expands
-               the panel to here and then asks for the form. */
-            window.addEventListener('chat:new-channel', () => this.pick('channel'));
         },
 
         get conversations() {

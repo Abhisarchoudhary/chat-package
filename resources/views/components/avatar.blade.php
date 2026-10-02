@@ -22,7 +22,10 @@
         <img :src="{{ $image }}" alt="" x-on:error="$el.remove()">
     </template>
 
+    {{-- Always drawn where presence is known at all, green or grey. Shown only
+         when somebody is online, it says nothing about the other state: an
+         empty corner reads as "not told" rather than as "not here". --}}
     @if ($online !== null)
-        <template x-if="{{ $online }}"><span class="rc-dot"></span></template>
+        <span class="rc-dot" :class="{ 'rc-dot--off': ! ({{ $online }}) }"></span>
     @endif
 </span>

@@ -44,12 +44,17 @@
     <template x-for="cid in boxes" :key="cid">
         <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded">
-                <x-chat::avatar name="$store.chat.find(cid)?.title" image="$store.chat.find(cid)?.image" size="sm" />
+                {{-- Whether they are here is the dot on the face, not a word
+                     under the name: said in writing it is a second line, and a
+                     second line is most of the height of this header. --}}
+                <x-chat::avatar
+                    name="$store.chat.find(cid)?.title"
+                    image="$store.chat.find(cid)?.image"
+                    online="$store.chat.find(cid)?.type !== 'team' ? $store.chat.find(cid)?.online : null"
+                    size="sm"
+                />
 
-                <span class="rc-box__title">
-                    <strong x-text="$store.chat.find(cid)?.title"></strong>
-                    <span x-text="$store.chat.subtitle($store.chat.find(cid))"></span>
-                </span>
+                <strong class="rc-box__title" x-text="$store.chat.find(cid)?.title"></strong>
 
                 <template x-if="$store.chat.abilities['call']">
                     <button
@@ -70,11 +75,6 @@
                     @click.stop="$store.chat.togglePin(cid)"
                 >
                     <x-chat::icon name="pin" />
-                </button>
-
-                <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="folded = ! folded" :title="folded ? '{{ __('Open') }}' : '{{ __('Minimise') }}'">
-                    <template x-if="folded"><x-chat::icon name="chevron-up" /></template>
-                    <template x-if="! folded"><x-chat::icon name="minimise" /></template>
                 </button>
 
                 <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">

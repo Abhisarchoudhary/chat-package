@@ -559,6 +559,9 @@
     border: 2px solid #fff;
 }
 
+/* Away, which is a colour rather than an absence. */
+.rc-dot--off { background: #93a3bd; }
+
 /* =============================================================== the bar */
 
 /*
@@ -988,19 +991,32 @@ body.rc-locked { overflow: hidden; }
 
 .rc-box--folded { height: auto; }
 
+/*
+ * One line: a face, a name, and what can be done to the conversation.
+ *
+ * It was two -- the name with "Online" or "Offline" written under it -- which
+ * is a second line of type to say a thing a dot says, in the header of a
+ * window three hundred pixels wide.
+ */
 .rc-box__head {
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 10px 12px;
+    gap: 8px;
+    padding: 5px 6px 5px 10px;
     background: var(--rc-navy);
     color: #fff;
     cursor: pointer;
 }
 
-.rc-box__title { flex: 1; min-width: 0; }
-.rc-box__title strong { display: block; font-size: var(--rc-text-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-box__title span { display: block; font-size: var(--rc-text-xs); color: #9db0d3; }
+.rc-box__title {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--rc-text-base);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 .rc-box__action {
     width: 28px;

@@ -448,7 +448,20 @@
 
 .rc-file:hover { border-color: var(--rc-primary); color: var(--rc-primary); }
 .rc-shot { margin-top: 6px; max-width: 320px; border-radius: 10px; display: block; border: 1px solid var(--rc-line); }
-.rc-typing { padding: 2px 18px 6px; font-size: var(--rc-text-sm); color: var(--rc-muted); min-height: 18px; }
+/* One line that holds either answer, so the composer never moves. */
+.rc-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 14px 6px;
+    min-height: 18px;
+    font-size: var(--rc-text-xs);
+    color: var(--rc-muted);
+}
+
+.rc-typing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-receipt { flex: none; margin-inline-start: auto; }
 
 /* ========================================================== the composer */
 
@@ -1067,7 +1080,7 @@ body.rc-locked { overflow: hidden; }
 .rc-box .rc-msg__tools { right: 12px; }
 .rc-box .rc-day { margin-inline: 12px; }
 .rc-box .rc-composer { padding: 0; }
-.rc-box .rc-typing { padding-inline: 12px; }
+.rc-box .rc-foot { padding-inline: 12px; }
 .rc-box .rc-error { padding-inline: 12px; }
 
 /* ============================================================ a dialogue */

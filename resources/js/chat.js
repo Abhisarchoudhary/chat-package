@@ -156,13 +156,44 @@ export function registerChat(Alpine) {
         };
     }
 
+    /**
+     * Who else has read up to this point in the conversation.
+     *
+     * Stream keeps `channel.state.read` as a mark per person — the moment they
+     * last read — rather than a flag per message, which is the right shape:
+     * reading is a position in a conversation, not an opinion about each line.
+     * So "seen" is everybody whose mark is at or past this message.
+     *
+     * Only other people count. Your own mark moves the instant you send, and a
+     * message that says it has been seen because you sent it is a lie with a
+     * tick next to it.
+     */
+    function seenBy(channel, message, me) {
+        const at = message.created_at ? new Date(message.created_at).getTime() : null;
+
+        if (at === null) {
+            return 0;
+        }
+
+        return Object.values(channel?.state?.read ?? {}).filter((mark) => {
+            if ((mark.user?.id ?? mark.user_id) === me) return false;
+
+            const read = mark.last_read ? new Date(mark.last_read).getTime() : 0;
+
+            return read >= at;
+        }).length;
+    }
+
     /** One message, flattened to what a row draws. */
-    function messageOf(message, me) {
+    function messageOf(message, me, channel = null) {
         return {
             id: message.id,
             text: message.text ?? '',
             deleted: message.type === 'deleted',
             mine: message.user?.id === me,
+            /* Only worked out for your own: nobody needs telling that they
+               have read the message they are looking at. */
+            seenBy: message.user?.id === me && channel ? seenBy(channel, message, me) : 0,
             userId: message.user?.id ?? null,
             userName: message.user?.name ?? message.user?.id ?? 'Someone',
             userImage: message.user?.image ?? null,
@@ -310,7 +341,7 @@ export function registerChat(Alpine) {
             channels.set(channel.cid, channel);
             this.messages[channel.cid] = (channel.state?.messages ?? [])
                 .filter((message) => message.type !== 'deleted')
-                .map((message) => messageOf(message, this.me));
+                .map((message) => messageOf(message, this.me, channel));
         },
 
         raw(cid) {
@@ -381,6 +412,12 @@ export function registerChat(Alpine) {
                    another window. Their own account reading it is a read. */
                 if (['message.read', 'notification.mark_read'].includes(event.type) && cid && event.user?.id === this.me) {
                     this.unreadOf = { ...this.unreadOf, [cid]: 0 };
+                }
+
+                /* And somebody else reading is what turns "Sent" into "Seen",
+                   so the list has to be built again from the new read marks. */
+                if (event.type === 'message.read' && cid && event.user?.id !== this.me && channels.has(cid)) {
+                    this.hold(channels.get(cid));
                 }
 
                 this.refresh();
@@ -743,6 +780,30 @@ export function registerChat(Alpine) {
 
         get messages() {
             return this.$store.chat.messages[this.cid] ?? [];
+        },
+
+        /**
+         * Where your own last message got to, under it and nowhere else.
+         *
+         * One line at the foot of the conversation rather than a tick on every
+         * row: the only one anybody checks is the last one they sent, and a
+         * column of ticks beside a morning's work is a column nobody reads.
+         */
+        get receipt() {
+            for (let index = this.messages.length - 1; index >= 0; index -= 1) {
+                const message = this.messages[index];
+
+                if (!message.mine) continue;
+
+                const seen = message.seenBy;
+                const others = Math.max((this.$store.chat.find(this.cid)?.members ?? 2) - 1, 1);
+
+                if (seen === 0) return 'Sent';
+
+                return others > 1 ? `Seen by ${seen}` : 'Seen';
+            }
+
+            return null;
         },
 
         init() {

@@ -103,7 +103,13 @@
         </template>
     </div>
 
-    <div class="rc-typing" x-text="typing.length ? typing.join(', ') + ' {{ __('is typing…') }}' : ''"></div>
+    {{-- Where your last one got to, and who is writing back. One strip for
+         both, because they are the same question asked from either end and
+         two strips would make the composer jump by a line. --}}
+    <div class="rc-foot">
+        <span class="rc-typing" x-text="typing.length ? typing.join(', ') + ' {{ __('is typing…') }}' : ''"></span>
+        <span class="rc-receipt" x-show="! typing.length && receipt" x-text="receipt"></span>
+    </div>
 
     <template x-if="error">
         <p class="rc-error" x-text="error"></p>

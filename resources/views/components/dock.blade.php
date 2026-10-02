@@ -67,14 +67,18 @@
                     </button>
                 </template>
 
+                {{-- Pinned or not is a different mark, not the same one in a
+                     different colour: a tint has to be noticed and then
+                     interpreted, and on a navy header there is not much tint
+                     to notice. The slash says what pressing it would do. --}}
                 <button
                     type="button"
                     class="rc-icon-button rc-icon-button--sm rc-icon-button--dark"
-                    :class="$store.chat.find(cid)?.pinned && 'rc-icon-button--on'"
                     :title="$store.chat.find(cid)?.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
                     @click.stop="$store.chat.togglePin(cid)"
                 >
-                    <x-chat::icon name="pin" />
+                    <template x-if="$store.chat.find(cid)?.pinned"><x-chat::icon name="pin-off" /></template>
+                    <template x-if="! $store.chat.find(cid)?.pinned"><x-chat::icon name="pin" /></template>
                 </button>
 
                 <button type="button" class="rc-icon-button rc-icon-button--sm rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">

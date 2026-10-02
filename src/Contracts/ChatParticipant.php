@@ -22,7 +22,17 @@ interface ChatParticipant
     /** The address that is the same person in every portal. */
     public function chatEmail(): string;
 
-    /** A photo, or null for initials. */
+    /**
+     * A photo, or null for initials.
+     *
+     * **It has to be fetchable without this portal's session.** Three portals
+     * read one directory, so a colleague's picture is requested by browsers
+     * signed in somewhere else: a URL behind `auth` answers them with a
+     * redirect to a sign-in page, the `<img>` fails, and everybody outside the
+     * portal that employs that person sees initials for ever. Where the photo
+     * is private -- and a photograph of a person usually is -- hand out a
+     * signed URL rather than opening the route up.
+     */
     public function chatImage(): ?string;
 
     /** Which business this person works for here: rypm, otr, crp. */

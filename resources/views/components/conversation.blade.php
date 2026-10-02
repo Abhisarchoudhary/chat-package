@@ -49,7 +49,7 @@
                                 class="rc-msg__thread"
                                 @click="$store.chat.openThread(cid, message.id)"
                             >
-                                <x-chat::icon name="thread" size="14" />
+                                <x-chat::icon name="thread" />
                                 <span x-text="message.replies === 1 ? '1 {{ __('reply') }}' : message.replies + ' {{ __('replies') }}'"></span>
                             </button>
                         </template>
@@ -62,7 +62,7 @@
 
                                 <template x-if="file.kind !== 'image'">
                                     <a class="rc-file" :href="file.url" target="_blank" rel="noopener">
-                                        <x-chat::icon name="file" size="16" />
+                                        <x-chat::icon name="file" />
                                         <span x-text="file.title"></span>
                                     </a>
                                 </template>
@@ -78,12 +78,12 @@
                                 @click="$store.chat.openThread(cid, message.id)"
                                 title="{{ __('Reply in thread') }}"
                             >
-                                <x-chat::icon name="reply" size="15" />
+                                <x-chat::icon name="reply" />
                             </button>
 
                             <template x-if="message.mine">
                                 <button type="button" class="rc-icon-button rc-icon-button--sm" @click="remove(message)" title="{{ __('Delete') }}">
-                                    <x-chat::icon name="trash" size="15" />
+                                    <x-chat::icon name="trash" />
                                 </button>
                             </template>
                         </div>
@@ -131,7 +131,22 @@
                     >
                 </label>
 
-                <span class="rc-composer__hint" x-text="uploading ? '{{ __('Uploading…') }}' : '{{ __('Enter to send · Shift + Enter for a new line') }}'"></span>
+                {{-- The key, not the word for it. Drawn rather than typed as
+                     ⏎ for the same reason every other glyph here is drawn:
+                     on a machine without a font carrying it, it is a box. --}}
+                <span class="rc-composer__hint">
+                    <template x-if="uploading">
+                        <span>{{ __('Uploading…') }}</span>
+                    </template>
+
+                    <template x-if="! uploading">
+                        <span class="rc-composer__keys">
+                            {{ __('Shift') }} +
+                            <x-chat::icon name="enter" size="13" />
+                            {{ __('for a new line') }}
+                        </span>
+                    </template>
+                </span>
 
                 <button type="submit" class="rc-icon-button rc-icon-button--send" :disabled="sending || text.trim() === ''" title="{{ __('Send') }}">
                     <x-chat::icon name="send" />

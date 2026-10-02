@@ -22,6 +22,14 @@ trait TalksInChat
         return (string) $this->email;
     }
 
+    /**
+     * Whatever the portal already uses for a photograph.
+     *
+     * Override this where that URL needs the portal's own session: the picture
+     * is fetched by browsers signed into the other two portals, so one behind
+     * `auth` shows them initials and nothing explains why. `ChatParticipant`
+     * says more about it.
+     */
     public function chatImage(): ?string
     {
         return method_exists($this, 'photoUrl') ? $this->photoUrl() : null;

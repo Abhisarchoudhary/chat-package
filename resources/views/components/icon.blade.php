@@ -1,4 +1,4 @@
-@props(['name', 'size' => 18, 'solid' => false])
+@props(['name', 'size' => null, 'solid' => false])
 
 {{--
     Chat's icons, drawn rather than typed.
@@ -28,11 +28,12 @@
         'dots' => '<circle cx="5" cy="10" r="1.3"/><circle cx="10" cy="10" r="1.3"/><circle cx="15" cy="10" r="1.3"/>',
         'file' => '<path d="M11 2.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V7l-4.5-4.5Z" stroke-linejoin="round"/><path d="M11 2.5V7h4.5" stroke-linejoin="round"/>',
         'mic-off' => '<path d="M4 4l12 12" stroke-linecap="round"/><path d="M12 5.5a2 2 0 0 0-4 0v3M8 11.5a2 2 0 0 0 4 0" stroke-linecap="round"/>',
-        'pin' => '<path d="M7.2 2.8h5.6M8 2.8v4.3L5.6 11h8.8L12 7.1V2.8M10 11v6.2" stroke-linecap="round" stroke-linejoin="round"/>',
-        'thread' => '<path d="M3.5 5.2c0-1 .8-1.7 1.7-1.7h6.6c1 0 1.7.8 1.7 1.7v3.4c0 1-.8 1.7-1.7 1.7H7.3L4.6 12.6v-2.3a1.7 1.7 0 0 1-1.1-1.7V5.2Z" stroke-linejoin="round"/><path d="M8.2 13.2c0 1 .8 1.7 1.7 1.7h2.8l2.7 2.3v-2.3c.6-.2 1.1-.9 1.1-1.7v-1.7c0-1-.8-1.7-1.7-1.7" stroke-linejoin="round"/>',
+        'pin' => '<path d="M7.5 2.5h5M9 2.5v4.6L6.5 11h7L11 7.1V2.5M10 11v6.3" stroke-linecap="round" stroke-linejoin="round"/>',
+        'thread' => '<path d="M2.8 5.3c0-1 .8-1.8 1.8-1.8h6.6c1 0 1.8.8 1.8 1.8v3.4c0 1-.8 1.8-1.8 1.8H6.1L2.8 13V5.3Z" stroke-linejoin="round"/><path d="M16 8.4c.7.3 1.2 1 1.2 1.8v3.4c0 1-.8 1.8-1.8 1.8H9.2" stroke-linecap="round" stroke-linejoin="round"/>',
         'filter' => '<path d="M3.5 5.5h13M6 10h8M8.5 14.5h3" stroke-linecap="round"/>',
         'at' => '<circle cx="10" cy="10" r="3"/><path d="M13 7v3.8c0 1 .8 1.9 1.9 1.9 1 0 1.8-.7 2-1.7A7.5 7.5 0 1 0 14 16.4" stroke-linecap="round"/>',
         'star' => '<path d="m10 3 2.2 4.5 4.9.7-3.5 3.5.8 4.9L10 14.3l-4.4 2.3.8-4.9L2.9 8.2l4.9-.7L10 3Z" stroke-linejoin="round"/>',
+        'enter' => '<path d="M16.5 4.5v5a2 2 0 0 1-2 2H5M8.5 8 5 11.5 8.5 15" stroke-linecap="round" stroke-linejoin="round"/>',
         'back' => '<path d="M16 10H4.5M9 4.5 4 10l5 5.5" stroke-linecap="round" stroke-linejoin="round"/>',
         'reply' => '<path d="M8 5.5 3.5 10 8 14.5M3.5 10h7.8a5 5 0 0 1 5 5v1" stroke-linecap="round" stroke-linejoin="round"/>',
         'pop-out' => '<path d="M9 4.5H5.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V10M11.5 3.5h5v5M16 4 9.5 10.5" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -42,8 +43,7 @@
 
 <svg
     {{ $attributes->merge(['class' => 'rc-icon']) }}
-    width="{{ $size }}"
-    height="{{ $size }}"
+    @if ($size) style="width: {{ $size }}px; height: {{ $size }}px" @endif
     viewBox="0 0 20 20"
     fill="{{ $solid ? 'currentColor' : 'none' }}"
     stroke="currentColor"

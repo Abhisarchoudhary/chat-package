@@ -18,7 +18,7 @@
             </div>
 
             <label class="rc-search">
-                <x-chat::icon name="search" size="16" />
+                <x-chat::icon name="search" />
                 <input type="search" x-model="search" placeholder="{{ __('Search') }}">
             </label>
         </div>
@@ -31,14 +31,14 @@
                 <div class="rc-rail__header">
                     <button type="button" class="rc-rail__toggle" @click="folded.channels = ! folded.channels">
                         <span class="rc-rail__caret" :class="folded.channels && 'rc-rail__caret--folded'">
-                            <x-chat::icon name="chevron-down" size="12" />
+                            <x-chat::icon name="chevron-down" size="14" />
                         </span>
                         <span>{{ __('Channels') }}</span>
                     </button>
 
                     <template x-if="$store.chat.abilities['create-channel']">
                         <button type="button" class="rc-rail__add" title="{{ __('New channel') }}" @click="pick('channel')">
-                            <x-chat::icon name="plus" size="14" />
+                            <x-chat::icon name="plus" />
                         </button>
                     </template>
                 </div>
@@ -50,7 +50,7 @@
                         :class="[$store.chat.active === conversation.cid && 'rc-row--on', conversation.unread > 0 && 'rc-row--unread']"
                         @click="open(conversation.cid)"
                     >
-                        <span class="rc-row__icon"><x-chat::icon name="hash" size="16" /></span>
+                        <span class="rc-row__icon"><x-chat::icon name="hash" /></span>
                         <span class="rc-row__title" x-text="conversation.title"></span>
                         <template x-if="conversation.unread > 0">
                             <span class="rc-pill" x-text="conversation.unread"></span>
@@ -67,13 +67,13 @@
                 <div class="rc-rail__header">
                     <button type="button" class="rc-rail__toggle" @click="folded.direct = ! folded.direct">
                         <span class="rc-rail__caret" :class="folded.direct && 'rc-rail__caret--folded'">
-                            <x-chat::icon name="chevron-down" size="12" />
+                            <x-chat::icon name="chevron-down" size="14" />
                         </span>
                         <span>{{ __('Direct messages') }}</span>
                     </button>
 
                     <button type="button" class="rc-rail__add" title="{{ __('Message someone') }}" @click="pick('person')">
-                        <x-chat::icon name="plus" size="14" />
+                        <x-chat::icon name="plus" />
                     </button>
                 </div>
 
@@ -190,7 +190,7 @@
                 <div class="rc-details__head">
                     <strong>{{ __('Details') }}</strong>
                     <button type="button" class="rc-icon-button" @click="details = false" title="{{ __('Close') }}">
-                        <x-chat::icon name="close" size="16" />
+                        <x-chat::icon name="close" />
                     </button>
                 </div>
 
@@ -209,7 +209,7 @@
                             <template x-if="! person.you">
                                 <button type="button" class="rc-icon-button rc-icon-button--sm" title="{{ __('Message them') }}"
                                         @click="messagePerson(person.id)">
-                                    <x-chat::icon name="message" size="15" />
+                                    <x-chat::icon name="message" />
                                 </button>
                             </template>
                         </div>
@@ -251,7 +251,7 @@
                 </template>
 
                 <label class="rc-search rc-search--light">
-                    <x-chat::icon name="search" size="16" />
+                    <x-chat::icon name="search" />
                     <input type="text" placeholder="{{ __('Search people by name or email') }}" @input.debounce.300ms="loadPeople($event.target.value)">
                 </label>
 

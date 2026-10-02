@@ -58,7 +58,7 @@
                         title="{{ __('Start a call') }}"
                         @click.stop="$store.calls.start(cid, $store.chat.find(cid)?.memberIds ?? [], $store.chat.find(cid)?.title)"
                     >
-                        <x-chat::icon name="phone" size="16" />
+                        <x-chat::icon name="phone" />
                     </button>
                 </template>
 
@@ -69,16 +69,16 @@
                     :title="$store.chat.find(cid)?.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
                     @click.stop="$store.chat.togglePin(cid)"
                 >
-                    <x-chat::icon name="pin" size="16" />
+                    <x-chat::icon name="pin" />
                 </button>
 
                 <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="folded = ! folded" :title="folded ? '{{ __('Open') }}' : '{{ __('Minimise') }}'">
-                    <template x-if="folded"><x-chat::icon name="chevron-up" size="16" /></template>
-                    <template x-if="! folded"><x-chat::icon name="minimise" size="16" /></template>
+                    <template x-if="folded"><x-chat::icon name="chevron-up" /></template>
+                    <template x-if="! folded"><x-chat::icon name="minimise" /></template>
                 </button>
 
                 <button type="button" class="rc-icon-button rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">
-                    <x-chat::icon name="close" size="16" />
+                    <x-chat::icon name="close" />
                 </button>
             </div>
 
@@ -97,12 +97,12 @@
                  where there is not: the same slot, so the title never moves. --}}
             <template x-if="$store.chat.thread">
                 <button type="button" class="rc-icon-button" @click="back()" title="{{ __('Back') }}">
-                    <x-chat::icon name="back" size="17" />
+                    <x-chat::icon name="back" />
                 </button>
             </template>
 
             <template x-if="! $store.chat.thread">
-                <span class="rc-mini__mark"><x-chat::icon name="message" size="15" /></span>
+                <span class="rc-mini__mark"><x-chat::icon name="message" /></span>
             </template>
 
             <span class="rc-mini__title">
@@ -119,12 +119,12 @@
                 @click="wide = ! wide"
                 :title="wide ? '{{ __('Shrink') }}' : '{{ __('Expand') }}'"
             >
-                <template x-if="wide"><x-chat::icon name="collapse" size="16" /></template>
-                <template x-if="! wide"><x-chat::icon name="expand" size="16" /></template>
+                <template x-if="wide"><x-chat::icon name="collapse" /></template>
+                <template x-if="! wide"><x-chat::icon name="expand" /></template>
             </button>
 
             <button type="button" class="rc-icon-button" @click="close()" title="{{ __('Close') }}">
-                <x-chat::icon name="close" size="16" />
+                <x-chat::icon name="close" />
             </button>
         </header>
 
@@ -221,7 +221,7 @@
                     <div class="rc-mini__pane">
                         <div class="rc-mini__search">
                             <label class="rc-search rc-search--light">
-                                <x-chat::icon name="search" size="15" />
+                                <x-chat::icon name="search" />
                                 <input
                                     type="search"
                                     x-model="search"
@@ -240,7 +240,7 @@
                                     <div class="rc-mini__order" @click.outside="ordering = false">
                                         <button type="button" class="rc-chip" @click="ordering = ! ordering">
                                             <span x-text="orderLabel"></span>
-                                            <x-chat::icon name="chevron-down" size="12" />
+                                            <x-chat::icon name="chevron-down" size="14" />
                                         </button>
 
                                         <div class="rc-menu" x-show="ordering" x-transition.opacity.duration.100ms>
@@ -269,7 +269,7 @@
                                         <div class="rc-row" :class="row.unread > 0 && 'rc-row--unread'">
                                             <button type="button" class="rc-row__open" @click="open(row.cid)">
                                                 <template x-if="row.type === 'team'">
-                                                    <span class="rc-row__icon"><x-chat::icon name="hash" size="16" /></span>
+                                                    <span class="rc-row__icon"><x-chat::icon name="hash" /></span>
                                                 </template>
 
                                                 <template x-if="row.type !== 'team'">
@@ -293,7 +293,7 @@
                                                 :title="row.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
                                                 @click="$store.chat.togglePin(row.cid)"
                                             >
-                                                <x-chat::icon name="pin" size="14" />
+                                                <x-chat::icon name="pin" />
                                             </button>
                                         </div>
                                     </template>
@@ -326,7 +326,7 @@
                                             :class="thread.unread > 0 && 'rc-row--unread'"
                                             @click="$store.chat.openThread(thread.cid, thread.id)"
                                         >
-                                            <span class="rc-row__icon"><x-chat::icon name="thread" size="16" /></span>
+                                            <span class="rc-row__icon"><x-chat::icon name="thread" /></span>
 
                                             <span class="rc-row__body">
                                                 <span class="rc-row__title" x-text="thread.text"></span>
@@ -407,7 +407,7 @@
                             </div>
 
                             <button type="button" class="rc-new" @click="adding = ! adding" title="{{ __('Start a conversation') }}">
-                                <x-chat::icon name="plus" size="17" />
+                                <x-chat::icon name="plus" />
                             </button>
                         </div>
                     </div>
@@ -430,7 +430,7 @@
                 data-test="chat-tab-{{ $tab['key'] }}"
             >
                 <span class="rc-tab__icon">
-                    <x-chat::icon name="{{ $tab['icon'] }}" size="18" />
+                    <x-chat::icon name="{{ $tab['icon'] }}" />
 
                     <template x-if="countFor('{{ $tab['key'] }}') > 0">
                         <span class="rc-badge" x-text="countFor('{{ $tab['key'] }}')"></span>

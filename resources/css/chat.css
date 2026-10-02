@@ -375,12 +375,14 @@
 .rc-msg__name { font-weight: 700; font-size: var(--rc-text-base); }
 .rc-msg__at { font-size: var(--rc-text-xs); color: var(--rc-muted); }
 
-.rc-msg__text {
+.rc-msg__line {
     font-size: var(--rc-text-base);
     line-height: 1.5;
-    white-space: pre-wrap;
     word-break: break-word;
 }
+
+/* Only the words themselves keep their own spacing. */
+.rc-msg__text { white-space: pre-wrap; }
 
 .rc-msg__gone { color: var(--rc-muted); font-style: italic; font-size: var(--rc-text-base); }
 
@@ -461,17 +463,22 @@
 }
 
 .rc-typing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rc-receipt {
-    flex: none;
-    margin-inline-start: auto;
+/*
+ * At the end of your own line, the way a timestamp sits in a bubble: it is
+ * about that message, so it travels with it rather than sitting at the foot of
+ * the conversation where the next person to speak would inherit it.
+ */
+.rc-tick {
     display: inline-flex;
+    vertical-align: -3px;
+    margin-inline-start: 6px;
     color: var(--rc-muted);
 }
 
 /* Read is the one that earns a colour. */
-.rc-receipt--read { color: var(--rc-primary); }
+.rc-tick--read { color: var(--rc-primary); }
 
-.rc-receipt .rc-icon { width: var(--rc-icon-sm); height: var(--rc-icon-sm); }
+.rc-tick .rc-icon { width: var(--rc-icon-sm); height: var(--rc-icon-sm); }
 
 /* ========================================================== the composer */
 
@@ -1093,7 +1100,7 @@ body.rc-locked { overflow: hidden; }
 .rc-box__action:hover { background: #ffffff1f; color: #fff; }
 .rc-box .rc-messages { padding-top: 10px; }
 .rc-box .rc-msg { padding-inline: 12px; }
-.rc-box .rc-msg__text { font-size: var(--rc-text-base); }
+.rc-box .rc-msg__line { font-size: var(--rc-text-base); }
 .rc-box .rc-msg__tools { right: 12px; }
 .rc-box .rc-day { margin-inline: 12px; }
 .rc-box .rc-composer { padding: 0; }

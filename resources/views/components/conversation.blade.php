@@ -40,7 +40,14 @@
                         </template>
 
                         <template x-if="message.text">
-                            <div class="rc-msg__text" x-text="message.text"></div>
+                            {{-- One tick sent, two delivered, two in colour read, at the
+                                 end of the line it belongs to. Only on your own: nobody
+                                 needs telling they have read what they can see.
+
+                                 The text keeps `pre-wrap` on a span of its own, because
+                                 on the line it would keep the newline between it and the
+                                 tick and draw that too. --}}
+                            <div class="rc-msg__line"><span class="rc-msg__text" x-text="message.text"></span><template x-if="message.mine && message.receipt"><span class="rc-tick" :class="message.receipt === 'read' && 'rc-tick--read'" :title="{ sent: '{{ __('Sent') }}', delivered: '{{ __('Delivered') }}', read: '{{ __('Read') }}' }[message.receipt]"><template x-if="message.receipt === 'sent'"><x-chat::icon name="tick" /></template><template x-if="message.receipt !== 'sent'"><x-chat::icon name="tick-double" /></template></span></template></div>
                         </template>
 
                         <template x-if="message.replies > 0">
@@ -103,23 +110,8 @@
         </template>
     </div>
 
-    {{-- Where your last one got to, and who is writing back. One strip for
-         both, because they are the same question asked from either end and
-         two strips would make the composer jump by a line. --}}
     <div class="rc-foot">
         <span class="rc-typing" x-text="typing.length ? typing.join(', ') + ' {{ __('is typing…') }}' : ''"></span>
-        {{-- One tick sent, two delivered, two in colour read — the shape
-             everybody already knows, and it costs a glyph rather than a word
-             in a strip that has room for neither. --}}
-        <span
-            class="rc-receipt"
-            :class="receipt === 'read' && 'rc-receipt--read'"
-            x-show="! typing.length && receipt"
-            :title="{ sent: '{{ __('Sent') }}', delivered: '{{ __('Delivered') }}', read: '{{ __('Read') }}' }[receipt]"
-        >
-            <template x-if="receipt === 'sent'"><x-chat::icon name="tick" /></template>
-            <template x-if="receipt !== 'sent'"><x-chat::icon name="tick-double" /></template>
-        </span>
     </div>
 
     <template x-if="error">

@@ -184,6 +184,21 @@ export function registerChat(Alpine) {
         }).length;
     }
 
+    /** Sent, delivered or read: how far one of your own messages got. */
+    function receiptFor(channel, message, me) {
+        const others = Math.max(Object.keys(channel?.state?.members ?? {}).length - 1, 1);
+
+        if (marksFor(channel, message, me, 'last_read') >= others) {
+            return 'read';
+        }
+
+        if (marksFor(channel, message, me, 'last_delivered_at') >= others) {
+            return 'delivered';
+        }
+
+        return 'sent';
+    }
+
     /** One message, flattened to what a row draws. */
     function messageOf(message, me, channel = null) {
         return {
@@ -193,8 +208,16 @@ export function registerChat(Alpine) {
             mine: message.user?.id === me,
             /* Only worked out for your own: nobody needs telling that they
                have read the message they are looking at. */
-            seenBy: message.user?.id === me && channel ? marksFor(channel, message, me, 'last_read') : 0,
-            deliveredTo: message.user?.id === me && channel ? marksFor(channel, message, me, 'last_delivered_at') : 0,
+            /*
+             * How far your own message got, worked out per message rather than
+             * once for the conversation: a mark at the foot of the list sits
+             * under whatever came last, so the moment somebody replied it was
+             * reading as a mark on *their* message.
+             *
+             * All three mean everybody in the room. One person out of eight
+             * having read it is not a blue tick.
+             */
+            receipt: message.user?.id === me && channel ? receiptFor(channel, message, me) : null,
             userId: message.user?.id ?? null,
             userName: message.user?.name ?? message.user?.id ?? 'Someone',
             userImage: message.user?.image ?? null,
@@ -807,31 +830,6 @@ export function registerChat(Alpine) {
             return this.$store.chat.messages[this.cid] ?? [];
         },
 
-        /**
-         * Where your own last message got to, under it and nowhere else.
-         *
-         * One line at the foot of the conversation rather than a tick on every
-         * row: the only one anybody checks is the last one they sent, and a
-         * column of ticks beside a morning's work is a column nobody reads.
-         */
-        get receipt() {
-            for (let index = this.messages.length - 1; index >= 0; index -= 1) {
-                const message = this.messages[index];
-
-                if (!message.mine) continue;
-
-                /* Everybody, or it is not the whole room's answer: one person
-                   out of eight having read it is not a blue tick. */
-                const others = Math.max((this.$store.chat.find(this.cid)?.members ?? 2) - 1, 1);
-
-                if (message.seenBy >= others) return 'read';
-                if (message.deliveredTo >= others) return 'delivered';
-
-                return 'sent';
-            }
-
-            return null;
-        },
 
         init() {
             /* Say we are drawing it, so a message arriving in front of

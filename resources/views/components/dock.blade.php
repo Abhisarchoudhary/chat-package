@@ -165,7 +165,7 @@
                                                     <span class="rc-msg__name" x-text="thread.parent.userName"></span>
                                                     <span class="rc-msg__at" x-text="at(thread.parent)"></span>
                                                 </div>
-                                                <div class="rc-msg__text" x-text="thread.parent.text"></div>
+                                                <div class="rc-msg__line"><span class="rc-msg__text" x-text="thread.parent.text"></span></div>
                                             </div>
                                         </article>
                                     </template>
@@ -183,7 +183,7 @@
                                                     <span class="rc-msg__name" x-text="reply.userName"></span>
                                                     <span class="rc-msg__at" x-text="at(reply)"></span>
                                                 </div>
-                                                <div class="rc-msg__text" x-text="reply.text"></div>
+                                                <div class="rc-msg__line"><span class="rc-msg__text" x-text="reply.text"></span></div>
                                             </div>
                                         </article>
                                     </template>

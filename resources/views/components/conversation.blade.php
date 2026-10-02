@@ -108,7 +108,18 @@
          two strips would make the composer jump by a line. --}}
     <div class="rc-foot">
         <span class="rc-typing" x-text="typing.length ? typing.join(', ') + ' {{ __('is typing…') }}' : ''"></span>
-        <span class="rc-receipt" x-show="! typing.length && receipt" x-text="receipt"></span>
+        {{-- One tick sent, two delivered, two in colour read — the shape
+             everybody already knows, and it costs a glyph rather than a word
+             in a strip that has room for neither. --}}
+        <span
+            class="rc-receipt"
+            :class="receipt === 'read' && 'rc-receipt--read'"
+            x-show="! typing.length && receipt"
+            :title="{ sent: '{{ __('Sent') }}', delivered: '{{ __('Delivered') }}', read: '{{ __('Read') }}' }[receipt]"
+        >
+            <template x-if="receipt === 'sent'"><x-chat::icon name="tick" /></template>
+            <template x-if="receipt !== 'sent'"><x-chat::icon name="tick-double" /></template>
+        </span>
     </div>
 
     <template x-if="error">

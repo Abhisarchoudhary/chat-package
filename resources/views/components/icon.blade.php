@@ -29,6 +29,8 @@
         'file' => '<path d="M11 2.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V7l-4.5-4.5Z" stroke-linejoin="round"/><path d="M11 2.5V7h4.5" stroke-linejoin="round"/>',
         'mic-off' => '<path d="M4 4l12 12" stroke-linecap="round"/><path d="M12 5.5a2 2 0 0 0-4 0v3M8 11.5a2 2 0 0 0 4 0" stroke-linecap="round"/>',
         'pin' => '<path d="M7.5 2.5h5M9 2.5v4.6L6.5 11h7L11 7.1V2.5M10 11v6.3" stroke-linecap="round" stroke-linejoin="round"/>',
+        'tick' => '<path d="M4 10.5 8 14.5 16 5.5" stroke-linecap="round" stroke-linejoin="round"/>',
+        'tick-double' => '<path d="M2 10.5 5.6 14.5 12.6 5.5M9 13.6 10.4 15 18 5.5" stroke-linecap="round" stroke-linejoin="round"/>',
         'pin-off' => '<path d="M7.5 2.5h5M11 2.5v4.6L13.5 11H8M8.6 7.3 6.5 11h3.9M10 11v6.3M3 3l14 14" stroke-linecap="round" stroke-linejoin="round"/>',
         'thread' => '<path d="M2.8 5.3c0-1 .8-1.8 1.8-1.8h6.6c1 0 1.8.8 1.8 1.8v3.4c0 1-.8 1.8-1.8 1.8H6.1L2.8 13V5.3Z" stroke-linejoin="round"/><path d="M16 8.4c.7.3 1.2 1 1.2 1.8v3.4c0 1-.8 1.8-1.8 1.8H9.2" stroke-linecap="round" stroke-linejoin="round"/>',
         'filter' => '<path d="M3.5 5.5h13M6 10h8M8.5 14.5h3" stroke-linecap="round"/>',

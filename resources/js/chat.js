@@ -168,7 +168,7 @@ export function registerChat(Alpine) {
      * message that says it has been seen because you sent it is a lie with a
      * tick next to it.
      */
-    function seenBy(channel, message, me) {
+    function marksFor(channel, message, me, field) {
         const at = message.created_at ? new Date(message.created_at).getTime() : null;
 
         if (at === null) {
@@ -178,9 +178,9 @@ export function registerChat(Alpine) {
         return Object.values(channel?.state?.read ?? {}).filter((mark) => {
             if ((mark.user?.id ?? mark.user_id) === me) return false;
 
-            const read = mark.last_read ? new Date(mark.last_read).getTime() : 0;
+            const when = mark[field] ? new Date(mark[field]).getTime() : 0;
 
-            return read >= at;
+            return when >= at;
         }).length;
     }
 
@@ -193,7 +193,8 @@ export function registerChat(Alpine) {
             mine: message.user?.id === me,
             /* Only worked out for your own: nobody needs telling that they
                have read the message they are looking at. */
-            seenBy: message.user?.id === me && channel ? seenBy(channel, message, me) : 0,
+            seenBy: message.user?.id === me && channel ? marksFor(channel, message, me, 'last_read') : 0,
+            deliveredTo: message.user?.id === me && channel ? marksFor(channel, message, me, 'last_delivered_at') : 0,
             userId: message.user?.id ?? null,
             userName: message.user?.name ?? message.user?.id ?? 'Someone',
             userImage: message.user?.image ?? null,
@@ -414,10 +415,21 @@ export function registerChat(Alpine) {
                     this.unreadOf = { ...this.unreadOf, [cid]: 0 };
                 }
 
-                /* And somebody else reading is what turns "Sent" into "Seen",
-                   so the list has to be built again from the new read marks. */
-                if (event.type === 'message.read' && cid && event.user?.id !== this.me && channels.has(cid)) {
+                /* Somebody else reading or receiving is what moves the ticks
+                   under what you sent, so the list is built again from the
+                   marks rather than waiting for the next message. */
+                if (['message.read', 'message.delivered'].includes(event.type) && cid && event.user?.id !== this.me && channels.has(cid)) {
                     this.hold(channels.get(cid));
+                }
+
+                /*
+                 * And this end reports the same thing back. A tick that only
+                 * ever moves for one of the two people in a conversation is a
+                 * tick that is wrong for the other one — delivery is told, not
+                 * deduced, and nobody tells it unless we do.
+                 */
+                if (arrived && from !== this.me && cid && event.message?.id) {
+                    this.confirm(cid, event.message.id);
                 }
 
                 this.refresh();
@@ -433,6 +445,19 @@ export function registerChat(Alpine) {
          */
         reading(cid) {
             return (this.watching[cid] ?? 0) > 0 && document.visibilityState === 'visible';
+        },
+
+        /**
+         * Tell Stream this browser has the message.
+         *
+         * Separate from reading it: arriving on a machine nobody is looking at
+         * is still delivery, and saying so is what puts the second tick under
+         * it at the other end.
+         */
+        confirm(cid, messageId) {
+            client.markChannelsDelivered?.({
+                latest_delivered_messages: [{ cid, id: messageId }],
+            }).catch(() => {});
         },
 
         /** A conversation component saying it is drawing this one, or has stopped. */
@@ -795,12 +820,14 @@ export function registerChat(Alpine) {
 
                 if (!message.mine) continue;
 
-                const seen = message.seenBy;
+                /* Everybody, or it is not the whole room's answer: one person
+                   out of eight having read it is not a blue tick. */
                 const others = Math.max((this.$store.chat.find(this.cid)?.members ?? 2) - 1, 1);
 
-                if (seen === 0) return 'Sent';
+                if (message.seenBy >= others) return 'read';
+                if (message.deliveredTo >= others) return 'delivered';
 
-                return others > 1 ? `Seen by ${seen}` : 'Seen';
+                return 'sent';
             }
 
             return null;

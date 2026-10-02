@@ -297,7 +297,8 @@
                                                 :title="row.pinned ? '{{ __('Unpin') }}' : '{{ __('Pin') }}'"
                                                 @click="$store.chat.togglePin(row.cid)"
                                             >
-                                                <x-chat::icon name="pin" />
+                                                <template x-if="row.pinned"><x-chat::icon name="pin-off" /></template>
+                                                <template x-if="! row.pinned"><x-chat::icon name="pin" /></template>
                                             </button>
                                         </div>
                                     </template>

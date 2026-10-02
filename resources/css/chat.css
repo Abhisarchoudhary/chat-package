@@ -461,7 +461,17 @@
 }
 
 .rc-typing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rc-receipt { flex: none; margin-inline-start: auto; }
+.rc-receipt {
+    flex: none;
+    margin-inline-start: auto;
+    display: inline-flex;
+    color: var(--rc-muted);
+}
+
+/* Read is the one that earns a colour. */
+.rc-receipt--read { color: var(--rc-primary); }
+
+.rc-receipt .rc-icon { width: var(--rc-icon-sm); height: var(--rc-icon-sm); }
 
 /* ========================================================== the composer */
 
@@ -936,6 +946,13 @@ body.rc-locked { overflow: hidden; }
 /* The pin is on every row, faint until somebody looks at that row: a pin
    hidden in a menu is a pin nobody finds, and five bright pins in a column
    are five things shouting at somebody reading a list. */
+/*
+ * The pin on a list row is a thing you reach for occasionally, beside a name
+ * you read constantly, so it takes the small glyph. At the chrome size it was
+ * the loudest mark in a column of faces and names.
+ */
+.rc-row__pin .rc-icon { width: var(--rc-icon-sm); height: var(--rc-icon-sm); }
+
 .rc-row__pin {
     width: var(--rc-control);
     flex: none;

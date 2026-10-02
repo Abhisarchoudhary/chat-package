@@ -468,10 +468,16 @@
  * about that message, so it travels with it rather than sitting at the foot of
  * the conversation where the next person to speak would inherit it.
  */
+/*
+ * At the end of the row rather than the end of the sentence. Floated, so it
+ * lands on the last line of the message and costs no height -- a mark that
+ * takes a line of its own is a mark that doubles the size of "ok".
+ */
 .rc-tick {
+    float: inline-end;
     display: inline-flex;
-    vertical-align: -3px;
-    margin-inline-start: 6px;
+    margin-top: 4px;
+    margin-inline-start: 10px;
     color: var(--rc-muted);
 }
 

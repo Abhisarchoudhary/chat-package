@@ -184,6 +184,13 @@ export function registerChat(Alpine) {
         }).length;
     }
 
+    /** What somebody is called in a line of conversation: the first word of it. */
+    function shortNameOf(name) {
+        const first = String(name ?? '').trim().split(/\s+/)[0];
+
+        return first === '' ? String(name ?? '') : first;
+    }
+
     /** Sent, delivered or read: how far one of your own messages got. */
     function receiptFor(channel, message, me) {
         const others = Math.max(Object.keys(channel?.state?.members ?? {}).length - 1, 1);
@@ -219,7 +226,19 @@ export function registerChat(Alpine) {
              */
             receipt: message.user?.id === me && channel ? receiptFor(channel, message, me) : null,
             userId: message.user?.id ?? null,
+            /* The whole name, which is what the initials are taken from. */
             userName: message.user?.name ?? message.user?.id ?? 'Someone',
+            /*
+             * And the short one, which is what gets written above every
+             * message. In a direct conversation the header already says who
+             * you are talking to, so the full name over each line is the same
+             * eighteen characters again; in a room a first name is what people
+             * call each other anyway. Your own says "You" — a name nobody uses
+             * for themselves, repeated down a column of their own messages.
+             */
+            userLabel: message.user?.id === me
+                ? 'You'
+                : shortNameOf(message.user?.name ?? message.user?.id ?? 'Someone'),
             userImage: message.user?.image ?? null,
             at: message.created_at ? new Date(message.created_at).getTime() : Date.now(),
             /* A message with replies is the top of a thread, and the count is

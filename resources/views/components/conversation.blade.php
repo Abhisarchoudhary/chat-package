@@ -34,7 +34,7 @@
                     <div class="rc-msg__body">
                         <template x-if="startsRun(index)">
                             <div class="rc-msg__who">
-                                <span class="rc-msg__name" x-text="message.userName"></span>
+                                <span class="rc-msg__name" :title="message.userName" x-text="message.userLabel"></span>
                                 <span class="rc-msg__at" x-text="at(message)"></span>
                             </div>
                         </template>

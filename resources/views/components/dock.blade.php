@@ -162,7 +162,7 @@
 
                                             <div>
                                                 <div class="rc-msg__who">
-                                                    <span class="rc-msg__name" x-text="thread.parent.userName"></span>
+                                                    <span class="rc-msg__name" :title="thread.parent.userName" x-text="thread.parent.userLabel"></span>
                                                     <span class="rc-msg__at" x-text="at(thread.parent)"></span>
                                                 </div>
                                                 <div class="rc-msg__line"><span class="rc-msg__text" x-text="thread.parent.text"></span></div>
@@ -180,7 +180,7 @@
 
                                             <div>
                                                 <div class="rc-msg__who">
-                                                    <span class="rc-msg__name" x-text="reply.userName"></span>
+                                                    <span class="rc-msg__name" :title="reply.userName" x-text="reply.userLabel"></span>
                                                     <span class="rc-msg__at" x-text="at(reply)"></span>
                                                 </div>
                                                 <div class="rc-msg__line"><span class="rc-msg__text" x-text="reply.text"></span></div>

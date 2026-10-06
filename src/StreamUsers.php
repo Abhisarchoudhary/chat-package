@@ -126,9 +126,22 @@ final class StreamUsers
         $filter = ['id' => ['$ne' => 'system']];
 
         if (filled($search)) {
+            $term = trim($search);
+
+            /*
+             * `$autocomplete` works on `name` and on nothing else here.
+             * `email` is a custom field, and Stream indexes custom fields for
+             * exact matches only — it answers anything else on one with a 400,
+             * which this used to ask it for and which took the whole search
+             * down with it rather than only the email half of it.
+             *
+             * So a whole address finds somebody and half of one does not, and
+             * the id cannot stand in for it: it is a hash of the address on
+             * purpose, so that three portals agree on who a person is.
+             */
             $filter['$or'] = [
-                ['name' => ['$autocomplete' => $search]],
-                ['email' => ['$autocomplete' => $search]],
+                ['name' => ['$autocomplete' => $term]],
+                ['email' => ['$eq' => mb_strtolower($term)]],
             ];
         }
 
@@ -151,6 +164,20 @@ final class StreamUsers
                 'next' => $after,
                 'offset' => $after === null && $offset > 0 ? $offset : null,
             ], static fn ($value) => $value !== null));
+
+            /*
+             * Null is Stream refusing the question, not Stream having nobody to
+             * answer it with — and the two must not look alike. A refused
+             * filter that reads as an empty directory is exactly how a search
+             * that found nobody at all went on looking like a search.
+             */
+            if ($answer === null) {
+                if ($people === []) {
+                    throw new \RuntimeException('Stream would not answer the directory.');
+                }
+
+                break;
+            }
 
             $page = array_values((array) ($answer['users'] ?? []));
 

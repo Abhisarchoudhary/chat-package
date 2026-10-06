@@ -33,10 +33,19 @@ final class ChatController
             return response()->json(['message' => 'This account cannot use chat.'], 403);
         }
 
-        $people = $users->directory(
-            most: (int) config('chat.directory_limit', 1000),
-            search: $request->string('q')->toString() ?: null,
-        );
+        try {
+            $people = $users->directory(
+                most: (int) config('chat.directory_limit', 1000),
+                search: $request->string('q')->toString() ?: null,
+            );
+        } catch (\RuntimeException) {
+            /*
+             * Said rather than swallowed. An empty list here would tell
+             * somebody that nobody in the company matches what they typed,
+             * which is a different and much more convincing sort of wrong.
+             */
+            return response()->json(['message' => 'The directory is not answering just now.'], 503);
+        }
 
         $here = (string) config('chat.organisation');
         $labels = (array) config('chat.organisations', []);

@@ -34,7 +34,7 @@ final class ChatController
         }
 
         $people = $users->directory(
-            limit: 100,
+            most: (int) config('chat.directory_limit', 1000),
             search: $request->string('q')->toString() ?: null,
         );
 

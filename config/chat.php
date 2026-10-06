@@ -58,6 +58,18 @@ return [
     'model' => env('CHAT_MODEL'),
 
     /*
+     * How many people the directory will show at most.
+     *
+     * Stream answers a hundred users to a request and no more, so this is read
+     * a page at a time until it is reached — the number is here because the
+     * cost of raising it is requests, and a portal with four thousand people
+     * knows better than the package whether it wants forty of them in front of
+     * somebody looking for a colleague, or whether that is what the search box
+     * is for.
+     */
+    'directory_limit' => (int) env('CHAT_DIRECTORY_LIMIT', 1000),
+
+    /*
     |--------------------------------------------------------------------------
     | The archive
     |--------------------------------------------------------------------------

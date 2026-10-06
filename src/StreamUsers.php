@@ -21,6 +21,9 @@ use Revun\Chat\Contracts\ChatParticipant;
  */
 final class StreamUsers
 {
+    /** How many users Stream will answer in one request, whatever it is asked for. */
+    private const PAGE = 100;
+
     public function __construct(private readonly Stream $stream) {}
 
     /**
@@ -108,9 +111,17 @@ final class StreamUsers
      * for a recruiter cannot query the recruitment portal's database, and does
      * not need to — every portal writes its people here.
      *
+     * **A hundred is Stream's page, not the company.** It will not answer more
+     * than that in one request however many there are, so asking once and
+     * returning the answer is a directory that quietly stops at the hundredth
+     * name — everybody after it missing, and missing in a way nobody notices
+     * until somebody cannot find a colleague. So the pages are walked until
+     * Stream runs out of them or `$most` is reached, which is the only number
+     * here a portal should ever need to think about.
+     *
      * @return list<array<string, mixed>>
      */
-    public function directory(int $limit = 100, ?string $search = null, ?string $after = null): array
+    public function directory(int $most = 1000, ?string $search = null): array
     {
         $filter = ['id' => ['$ne' => 'system']];
 
@@ -121,14 +132,47 @@ final class StreamUsers
             ];
         }
 
-        $answer = $this->stream->query('users', array_filter([
-            'filter_conditions' => $filter,
-            'sort' => [['field' => 'name', 'direction' => 1]],
-            'limit' => max(1, min($limit, 100)),
-            'next' => $after,
-        ]));
+        $people = [];
+        $after = null;
+        $offset = 0;
 
-        return array_values((array) ($answer['users'] ?? []));
+        while (count($people) < max(1, $most)) {
+            $asking = min(self::PAGE, max(1, $most) - count($people));
+
+            /*
+             * Stream pages with a cursor where it gives one and with an offset
+             * where it does not, and it refuses both together — so the offset
+             * is sent only until a cursor arrives to replace it.
+             */
+            $answer = $this->stream->query('users', array_filter([
+                'filter_conditions' => $filter,
+                'sort' => [['field' => 'name', 'direction' => 1]],
+                'limit' => $asking,
+                'next' => $after,
+                'offset' => $after === null && $offset > 0 ? $offset : null,
+            ], static fn ($value) => $value !== null));
+
+            $page = array_values((array) ($answer['users'] ?? []));
+
+            /*
+             * Keyed by id, because offset paging over a list somebody is being
+             * added to can hand back a name that was already on the last page,
+             * and twice in the directory is its own kind of wrong.
+             */
+            foreach ($page as $person) {
+                $people[(string) ($person['id'] ?? count($people))] = $person;
+            }
+
+            $after = filled($answer['next'] ?? null) ? (string) $answer['next'] : null;
+            $offset += count($page);
+
+            /* A page shorter than the one asked for is the last page. */
+            if (count($page) < $asking) {
+                break;
+            }
+        }
+
+        return array_values($people);
     }
 
     /**

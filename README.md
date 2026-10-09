@@ -368,6 +368,39 @@ is the job. Deciding what somebody should be looking at is not.
 
 ---
 
+## Links, pictures and previews
+
+**An address somebody types becomes one they can press**, opening in a new tab
+so the conversation is still there when they come back. The escaping happens
+before the linking and not after — the message is turned into entities first
+and anchors are wrapped round what is left, because the other order means the
+escaping eats the anchors, and no escaping at all means a chat message is a
+place to put a script tag. Only `http`, `https` and a bare `www.` become
+links: `javascript:` is an address too, and a message box is exactly where
+somebody would try one.
+
+**A scraped link is a reference, not a photograph.** Stream reads any address
+in a message and hands back what the page says about itself, including its
+`og:image` — which for most sites is the company logo. Drawn as an attachment
+that is a three-hundred-pixel mark sitting under a one-line message. It is
+drawn as a card instead: a forty-pixel thumbnail, the title, and the host, the
+whole of it a link to the page.
+
+**A picture opens over the page, not in a tab.** Leaving chat to look at
+something somebody sent, and then finding the way back, is not looking at it.
+There is one viewer for the whole of chat and it lives in the dock, which is
+what lets a picture opened from a floating box cover the screen instead of
+being clipped by a three-hundred-pixel window. It closes on the button, on the
+backdrop and on escape — and escape stops there rather than also shutting the
+panel behind it. Saving is a fetch and a blob rather than a `download`
+attribute, which browsers ignore across origins: the files are on Stream's
+CDN, so the attribute alone would turn Save into Leave The Page.
+
+It sits just below the call card on purpose. A call that arrives while somebody
+is looking at a photograph still has to be answerable.
+
+---
+
 ## The identity rule
 
 A person is their email address, everywhere — the same rule the three portals

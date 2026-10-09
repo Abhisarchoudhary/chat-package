@@ -38,6 +38,11 @@
 {{-- The call card rings everywhere, whatever the bar is showing. --}}
 <x-chat::call />
 
+{{-- And the one picture viewer, for every conversation in either interface.
+     It is here because the dock is in the layout: a viewer belonging to a
+     floating box could only ever be the size of that box. --}}
+<x-chat::viewer />
+
 {{-- Conversation windows, beginning after the bar's own column so they never
      sit on top of the lists that opened them. --}}
 <div class="rc-boxes">

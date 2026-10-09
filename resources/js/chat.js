@@ -79,6 +79,74 @@ function whenIdle(work) {
     }
 }
 
+/**
+ * A web address somebody typed, made into one they can press.
+ *
+ * **The escaping comes first and the linking second, and the order is the
+ * whole of the safety.** This builds HTML out of something a colleague typed,
+ * so every angle bracket and quote is turned into an entity before anything
+ * is wrapped in an anchor — link first and escape after and the escaping eats
+ * the anchors; skip the escaping and a message is a place to put a script tag.
+ *
+ * Only `http` and `https` become links. `javascript:` is a URL too, and a
+ * chat message is exactly where somebody would try one.
+ */
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+function escaped(text) {
+    return String(text ?? '').replace(/[&<>"']/g, (character) => ESCAPES[character]);
+}
+
+/*
+ * Trailing punctuation is not part of the address. "Look at https://x.com/a."
+ * ends in a full stop belonging to the sentence, and a bracket at the end is
+ * only part of the link if one was opened inside it.
+ */
+function trimmed(url) {
+    let end = url.length;
+
+    while (end > 0 && '.,;:!?'.includes(url[end - 1])) end--;
+
+    /*
+     * A closing bracket belongs to the sentence only where nothing opened it
+     * inside the address: "(see https://x.com/a)" ends the link before the
+     * bracket, and `/wiki/Foo_(bar)` does not. Counted rather than assumed —
+     * stripping every trailing bracket breaks every Wikipedia address there
+     * is.
+     */
+    while (end > 0 && url[end - 1] === ')') {
+        const so_far = url.slice(0, end);
+        const opens = so_far.split('(').length - 1;
+        const closes = so_far.split(')').length - 1;
+
+        if (opens >= closes) break;
+
+        end--;
+    }
+
+    return url.slice(0, end);
+}
+
+function linkify(text) {
+    /* `www.` without a scheme is how most people write an address down. */
+    return escaped(text).replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, (match) => {
+        const url = trimmed(match);
+        const rest = match.slice(url.length);
+        const href = /^www\./i.test(url) ? `https://${url}` : url;
+
+        return `<a class="rc-link" href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>${rest}`;
+    });
+}
+
+/** The site an address belongs to, for a preview that should not shout. */
+function hostOf(url) {
+    try {
+        return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+        return '';
+    }
+}
+
 function initialsOf(name) {
     return (name || '?')
         .split(/\s+/)
@@ -245,11 +313,37 @@ export function registerChat(Alpine) {
                what the line under it offers to open. */
             replies: message.reply_count ?? 0,
             parentId: message.parent_id ?? null,
-            attachments: (message.attachments ?? []).map((attachment) => ({
-                kind: attachment.type === 'image' ? 'image' : 'file',
-                url: attachment.image_url ?? attachment.asset_url ?? null,
-                title: attachment.title ?? attachment.fallback ?? 'File',
-            })),
+            /*
+             * Three things arrive as "attachments" and only one of them is a
+             * file somebody chose to send.
+             *
+             * Stream scrapes any address in a message and hands back what the
+             * page says about itself — its title, and its og:image, which for
+             * most sites is a logo. Drawn as a photograph that is a company
+             * mark three hundred pixels wide sitting under a one-line message.
+             * It is a reference to a page, so it is drawn as one: a thumbnail
+             * the size of a line of text, the title, and the host.
+             */
+            attachments: (message.attachments ?? []).map((attachment) => {
+                const link = attachment.og_scrape_url ?? attachment.title_link ?? null;
+
+                if (link !== null) {
+                    return {
+                        kind: 'link',
+                        url: link,
+                        title: attachment.title || hostOf(link) || link,
+                        text: attachment.text ?? null,
+                        host: hostOf(link),
+                        thumb: attachment.thumb_url ?? attachment.image_url ?? null,
+                    };
+                }
+
+                return {
+                    kind: attachment.type === 'image' ? 'image' : 'file',
+                    url: attachment.image_url ?? attachment.asset_url ?? null,
+                    title: attachment.title ?? attachment.fallback ?? 'File',
+                };
+            }),
         };
     }
 
@@ -322,6 +416,77 @@ export function registerChat(Alpine) {
         toggleSound() {
             this.sound = ! this.sound;
             noise.mute(! this.sound);
+        },
+
+        /**
+         * The picture somebody is looking at, full screen.
+         *
+         * **One viewer for the whole of chat, held here rather than in the
+         * component that opened it.** A picture opened from a floating box has
+         * to cover the page, not sit inside a three-hundred-pixel window — and
+         * the same picture opened from the full chat is the same experience.
+         * A viewer per conversation would be a dozen of them, each clipped by
+         * whatever it was drawn inside.
+         */
+        viewing: null,
+
+        view(file, message) {
+            this.viewing = {
+                url: file.url,
+                title: file.title,
+                cid: message?.cid ?? null,
+                messageId: message?.id ?? null,
+                mine: !! message?.mine,
+            };
+        },
+
+        unview() {
+            this.viewing = null;
+        },
+
+        /**
+         * Saving it, rather than navigating to it.
+         *
+         * `download` on an anchor is ignored across origins, and the files are
+         * on Stream's CDN — so the attribute alone turns Save into Leave The
+         * Page. Fetched as a blob it is genuinely saved; where that is refused
+         * (no CORS headers, an expired link) opening it is better than a
+         * button that does nothing.
+         */
+        async save() {
+            const file = this.viewing;
+
+            if (file === null) return;
+
+            try {
+                const response = await fetch(file.url, { mode: 'cors' });
+
+                if (! response.ok) throw new Error('refused');
+
+                const blob = await response.blob();
+                const href = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+
+                anchor.href = href;
+                anchor.download = file.title || 'image';
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+
+                URL.revokeObjectURL(href);
+            } catch {
+                window.open(file.url, '_blank', 'noopener');
+            }
+        },
+
+        /** Deleting the message the picture came in, which closes the viewer. */
+        async unsend() {
+            const file = this.viewing;
+
+            if (file === null || ! file.mine || ! file.cid || ! file.messageId) return;
+
+            this.unview();
+            await this.remove(file.cid, file.messageId);
         },
 
         /**
@@ -977,6 +1142,16 @@ export function registerChat(Alpine) {
             if (message.mine) this.$store.chat.remove(this.cid, message.id);
         },
 
+        /** The message, with any address in it pressable. See `linkify`. */
+        linked(text) {
+            return linkify(text);
+        },
+
+        /** A picture opens here, not in a tab somebody has to come back from. */
+        look(file, message) {
+            this.$store.chat.view(file, { ...message, cid: this.cid });
+        },
+
         at(message) {
             return new Date(message.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         },
@@ -1082,6 +1257,12 @@ export function registerChat(Alpine) {
 
             /* Escape closes what is in front of somebody, innermost first. */
             window.addEventListener('keydown', (event) => {
+                /* The picture is in front of all of it, and it closes itself.
+                   Without this, one press shuts the photograph and the panel
+                   behind it, and somebody who wanted to stop looking at an
+                   image has lost their place in the conversation. */
+                if (this.$store.chat.viewing) return;
+
                 if (event.key !== 'Escape' || this.tab === null) return;
 
                 if (this.$store.chat.thread) return this.$store.chat.closeThread();

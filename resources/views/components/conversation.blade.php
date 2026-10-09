@@ -47,7 +47,7 @@
                                  The text keeps `pre-wrap` on a span of its own, because
                                  on the line it would keep the newline between it and the
                                  tick and draw that too. --}}
-                            <div class="rc-msg__line"><span class="rc-msg__text" x-text="message.text"></span><template x-if="message.mine && message.receipt"><span class="rc-tick" :class="message.receipt === 'read' && 'rc-tick--read'" :title="{ sent: '{{ __('Sent') }}', delivered: '{{ __('Delivered') }}', read: '{{ __('Read') }}' }[message.receipt]"><template x-if="message.receipt === 'sent'"><x-chat::icon name="tick" /></template><template x-if="message.receipt !== 'sent'"><x-chat::icon name="tick-double" /></template></span></template></div>
+                            <div class="rc-msg__line"><span class="rc-msg__text" x-html="linked(message.text)"></span><template x-if="message.mine && message.receipt"><span class="rc-tick" :class="message.receipt === 'read' && 'rc-tick--read'" :title="{ sent: '{{ __('Sent') }}', delivered: '{{ __('Delivered') }}', read: '{{ __('Read') }}' }[message.receipt]"><template x-if="message.receipt === 'sent'"><x-chat::icon name="tick" /></template><template x-if="message.receipt !== 'sent'"><x-chat::icon name="tick-double" /></template></span></template></div>
                         </template>
 
                         <template x-if="message.replies > 0">
@@ -63,12 +63,39 @@
 
                         <template x-for="file in message.attachments" :key="file.url">
                             <div>
+                                {{-- A picture opens over the page rather than
+                                     in a tab: leaving chat to look at a
+                                     photograph somebody sent, and then finding
+                                     the way back, is not looking at it. --}}
                                 <template x-if="file.kind === 'image'">
-                                    <a :href="file.url" target="_blank" rel="noopener"><img class="rc-shot" :src="file.url" :alt="file.title"></a>
+                                    <button
+                                        type="button"
+                                        class="rc-shot"
+                                        @click="look(file, message)"
+                                        :title="'{{ __('Open') }} — ' + file.title"
+                                    >
+                                        <img :src="file.url" :alt="file.title" loading="lazy">
+                                    </button>
                                 </template>
 
-                                <template x-if="file.kind !== 'image'">
-                                    <a class="rc-file" :href="file.url" target="_blank" rel="noopener">
+                                {{-- An address somebody pasted, as a reference
+                                     to a page and not as the page's logo blown
+                                     up to the width of the conversation. --}}
+                                <template x-if="file.kind === 'link'">
+                                    <a class="rc-card" :href="file.url" target="_blank" rel="noopener noreferrer">
+                                        <template x-if="file.thumb">
+                                            <img class="rc-card__shot" :src="file.thumb" alt="" loading="lazy">
+                                        </template>
+
+                                        <span class="rc-card__body">
+                                            <span class="rc-card__title" x-text="file.title"></span>
+                                            <span class="rc-card__host" x-text="file.host"></span>
+                                        </span>
+                                    </a>
+                                </template>
+
+                                <template x-if="file.kind === 'file'">
+                                    <a class="rc-file" :href="file.url" target="_blank" rel="noopener noreferrer">
                                         <x-chat::icon name="file" />
                                         <span x-text="file.title"></span>
                                     </a>

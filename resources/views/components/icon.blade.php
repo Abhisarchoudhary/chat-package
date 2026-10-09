@@ -40,6 +40,7 @@
         'back' => '<path d="M16 10H4.5M9 4.5 4 10l5 5.5" stroke-linecap="round" stroke-linejoin="round"/>',
         'reply' => '<path d="M8 5.5 3.5 10 8 14.5M3.5 10h7.8a5 5 0 0 1 5 5v1" stroke-linecap="round" stroke-linejoin="round"/>',
         'pop-out' => '<path d="M9 4.5H5.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V10M11.5 3.5h5v5M16 4 9.5 10.5" stroke-linecap="round" stroke-linejoin="round"/>',
+        'download' => '<path d="M10 3v9M6.5 8.8 10 12.3l3.5-3.5M3.5 14.5v1A1.5 1.5 0 0 0 5 17h10a1.5 1.5 0 0 0 1.5-1.5v-1" stroke-linecap="round" stroke-linejoin="round"/>',
         'bell' => '<path d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3.2-1.2 4.4-1.2 4.4h11.4s-1.2-1.2-1.2-4.4A4.5 4.5 0 0 0 10 3Z" stroke-linejoin="round"/><path d="M8.3 14.5a1.8 1.8 0 0 0 3.4 0" stroke-linecap="round"/>',
         'bell-off' => '<path d="M14.5 11.9s-1.2-1.2-1.2-4.4a4.5 4.5 0 0 0-6.9-3.8M5.6 5.9a4.5 4.5 0 0 0-.1.6c0 3.2-1.2 4.4-1.2 4.4h9.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.3 14.5a1.8 1.8 0 0 0 3.4 0" stroke-linecap="round"/><path d="m3 3 14 14" stroke-linecap="round"/>',
         'collapse' => '<path d="M3.5 7h2A1.5 1.5 0 0 0 7 5.5v-2M16.5 7h-2A1.5 1.5 0 0 1 13 5.5v-2M3.5 13h2A1.5 1.5 0 0 1 7 14.5v2M16.5 13h-2a1.5 1.5 0 0 0-1.5 1.5v2" stroke-linecap="round" stroke-linejoin="round"/>',

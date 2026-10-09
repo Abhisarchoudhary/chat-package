@@ -449,7 +449,128 @@
 }
 
 .rc-file:hover { border-color: var(--rc-primary); color: var(--rc-primary); }
-.rc-shot { margin-top: 6px; max-width: 320px; border-radius: 10px; display: block; border: 1px solid var(--rc-line); }
+/* An address inside a message. Underlined rather than only coloured: a
+   colour alone is not a link to somebody who cannot see the colour. */
+.rc-link { color: var(--rc-primary); text-decoration: underline; text-underline-offset: 2px; word-break: break-word; }
+.rc-link:hover { text-decoration-thickness: 2px; }
+
+/*
+ * A picture somebody sent.
+ *
+ * A button rather than a link, because it opens the viewer and not the tab —
+ * so it has to lose everything a button looks like and keep what it does.
+ */
+.rc-shot {
+    display: block;
+    margin-top: 6px;
+    padding: 0;
+    border: 1px solid var(--rc-line);
+    border-radius: 10px;
+    background: none;
+    cursor: zoom-in;
+    overflow: hidden;
+    line-height: 0;
+    max-width: 320px;
+}
+
+.rc-shot img { display: block; max-width: 100%; height: auto; }
+.rc-shot:hover { border-color: var(--rc-primary); }
+
+/*
+ * The card for a scraped address.
+ *
+ * Bounded on purpose. What comes back is whatever the page offered as its
+ * og:image, which for most sites is a logo — drawn at its own size that is a
+ * company mark three hundred pixels wide underneath a one-line message. Forty
+ * pixels is the height of the two lines beside it, so the card is the size of
+ * what it says rather than the size of what it found.
+ */
+.rc-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    padding: 8px 11px;
+    max-width: 320px;
+    border: 1px solid var(--rc-line);
+    border-left: 3px solid var(--rc-primary);
+    border-radius: 10px;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+}
+
+.rc-card:hover { border-color: var(--rc-primary); background: var(--rc-hover); }
+
+.rc-card__shot {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: contain;
+    background: var(--rc-hover);
+}
+
+.rc-card__body { display: grid; gap: 1px; min-width: 0; }
+
+.rc-card__title {
+    font-size: var(--rc-text-base);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rc-card__host { font-size: var(--rc-text-xs); color: var(--rc-muted); }
+
+/*
+ * The viewer: one picture, over everything.
+ *
+ * Above the call card, which is at 80, because a call that arrives while
+ * somebody is looking at a photograph still has to be answerable — so the
+ * card stays reachable and the picture does not cover it.
+ */
+.rc-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 78;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #0b1b3ae6;
+    backdrop-filter: blur(2px);
+}
+
+.rc-viewer__frame {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: min(1100px, 100%);
+    max-height: 100%;
+}
+
+.rc-viewer__head { display: flex; align-items: center; gap: 6px; color: #fff; }
+
+.rc-viewer__title {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--rc-text-base);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The picture is never scaled up past itself: a small photograph stretched to
+   fill a screen is a worse view of it than the one in the conversation. */
+.rc-viewer__stage { display: grid; place-items: center; min-height: 0; overflow: auto; }
+
+.rc-viewer__stage img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 120px);
+    border-radius: 10px;
+    background: #ffffff14;
+}
 /* One line that holds either answer, so the composer never moves. */
 .rc-foot {
     display: flex;

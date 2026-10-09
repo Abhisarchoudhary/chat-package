@@ -405,8 +405,10 @@ dock with `.rc-chat .rc-dock`, a two-class selector that beats this package's
 own one-class rule, and one of them puts it at 150 — so the sixty, seventy-
 eight and eighty chat used to layer itself with are all underneath it. The
 picture opened below the panel, and the call card has been hiding behind the
-expanded panel for as long as both have existed. `--rc-viewer-layer` and
-`--rc-call-layer` are there so a portal can reach over them without starting
+expanded panel for as long as both have existed. The picker that starts a conversation was under it
+too, so choosing somebody to write to could happen behind the panel that
+offered to start it. `--rc-viewer-layer`, `--rc-call-layer` and
+`--rc-modal-layer` are there so a portal can reach over them without starting
 another specificity war.
 
 A modal `<dialog>` would side-step the argument entirely — `showModal()` puts

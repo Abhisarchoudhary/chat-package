@@ -1257,7 +1257,11 @@ body.rc-locked { overflow: hidden; }
 .rc-modal {
     position: fixed;
     inset: 0;
-    z-index: 70;
+    /* Above the dock for the same reason the viewer is, and below it: a
+       portal's `.rc-chat .rc-dock` sits at 150, which this was under — so
+       choosing somebody to write to could happen behind the panel that
+       offered to start it. See the note on `.rc-viewer`. */
+    z-index: var(--rc-modal-layer, 1900);
     display: grid;
     place-items: center;
     background: rgb(12 18 32 / 55%);

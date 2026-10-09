@@ -396,8 +396,24 @@ panel behind it. Saving is a fetch and a blob rather than a `download`
 attribute, which browsers ignore across origins: the files are on Stream's
 CDN, so the attribute alone would turn Save into Leave The Page.
 
-It sits just below the call card on purpose. A call that arrives while somebody
-is looking at a photograph still has to be answerable.
+**Two numbers, and they only mean anything together:** the picture sits above
+the chat panel, and the call card sits above the picture. A photograph must
+never be the reason somebody cannot press Answer.
+
+They are larger than they look as though they need to be. A portal raises the
+dock with `.rc-chat .rc-dock`, a two-class selector that beats this package's
+own one-class rule, and one of them puts it at 150 — so the sixty, seventy-
+eight and eighty chat used to layer itself with are all underneath it. The
+picture opened below the panel, and the call card has been hiding behind the
+expanded panel for as long as both have existed. `--rc-viewer-layer` and
+`--rc-call-layer` are there so a portal can reach over them without starting
+another specificity war.
+
+A modal `<dialog>` would side-step the argument entirely — `showModal()` puts
+an element in the browser's top layer, above every stacking context whatever
+anybody's stylesheet says — and it was written that way first. It also makes
+everything behind it inert, the call card included, which is a worse problem
+than the one it solves.
 
 ---
 

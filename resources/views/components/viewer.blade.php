@@ -1,22 +1,29 @@
 {{--
-    A picture, full screen, over everything.
+    A picture, over everything.
 
-    **One of these for the whole of chat, and it lives in the dock.** The dock
-    is in the layout and persisted across page changes, so a picture opened
-    from a floating box, from the full chat page, or from a thread all arrive
-    here — and all cover the page rather than being clipped by the
-    three-hundred-pixel window they were opened from. A viewer per conversation
-    would be a dozen of them, each the size of its own container.
+    **One of these for the whole of chat, and it lives in the dock**, which is
+    in the layout and persisted across page changes. So a picture opened from a
+    floating box, from the full chat page, or from a thread all arrive here —
+    and all cover the page rather than being clipped by the window they were
+    opened from.
 
-    Three ways out, because somebody who wants a picture gone wants it gone:
-    the button, the backdrop, and escape.
+    It is an ordinary overlay and not a modal `<dialog>`. `showModal()` would
+    put it in the browser's top layer, above every z-index on the page, which
+    is tempting — but it also makes everything behind it inert, and everything
+    behind it includes the card with Answer on it. A photograph must not be
+    able to stop somebody taking a call. The layering is done with numbers
+    instead, and the call card is given a larger one.
+
+    Escape is not bound here. It belongs to the dock's one keyboard handler,
+    which closes the innermost thing first — two listeners on the same key
+    would race, and whichever ran second would act on a viewer the first had
+    already closed.
 --}}
 <div
     class="rc-viewer"
     x-data
     x-show="$store.chat.viewing"
     x-cloak
-    @keydown.escape.window="$store.chat.unview()"
     @click.self="$store.chat.unview()"
 >
     <template x-if="$store.chat.viewing">
@@ -33,9 +40,8 @@
                     <x-chat::icon name="download" />
                 </button>
 
-                {{-- Only on your own, and only ever from here: deleting
-                     somebody else's photograph out of a conversation is not
-                     a thing a viewer should offer. --}}
+                {{-- Only on your own: deleting somebody else's photograph out
+                     of a conversation is not a thing a viewer should offer. --}}
                 <template x-if="$store.chat.viewing.mine">
                     <button
                         type="button"
@@ -57,9 +63,9 @@
                 </button>
             </header>
 
-            {{-- The backdrop closes, so the area around the picture has to
-                 close too — otherwise the only quiet strip on the screen is
-                 the one place pressing does nothing. --}}
+            {{-- The backdrop closes, so the space around the picture closes
+                 too: otherwise the one quiet strip on the screen is the only
+                 place where pressing does nothing. --}}
             <div class="rc-viewer__stage" @click.self="$store.chat.unview()">
                 <img :src="$store.chat.viewing.url" :alt="$store.chat.viewing.title">
             </div>

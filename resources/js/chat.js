@@ -1257,11 +1257,17 @@ export function registerChat(Alpine) {
 
             /* Escape closes what is in front of somebody, innermost first. */
             window.addEventListener('keydown', (event) => {
-                /* The picture is in front of all of it, and it closes itself.
-                   Without this, one press shuts the photograph and the panel
-                   behind it, and somebody who wanted to stop looking at an
-                   image has lost their place in the conversation. */
-                if (this.$store.chat.viewing) return;
+                /* The picture is in front of all of it, so escape belongs to
+                   it and stops there. Without this, one press shuts the
+                   photograph and the panel behind it, and somebody who wanted
+                   to stop looking at an image has lost their place in the
+                   conversation. Closed here as well as by the dialog, for the
+                   browser where it is not a modal one. */
+                if (this.$store.chat.viewing) {
+                    if (event.key === 'Escape') this.$store.chat.unview();
+
+                    return;
+                }
 
                 if (event.key !== 'Escape' || this.tab === null) return;
 

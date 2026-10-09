@@ -526,19 +526,36 @@
 /*
  * The viewer: one picture, over everything.
  *
- * Above the call card, which is at 80, because a call that arrives while
- * somebody is looking at a photograph still has to be answerable — so the
- * card stays reachable and the picture does not cover it.
+ * **Both numbers are here together because only together do they mean
+ * anything.** The picture has to be above the chat panel and the call card
+ * has to be above the picture — a photograph must never be the reason
+ * somebody cannot press Answer.
+ *
+ * Why they are this large: a portal raises the dock with `.rc-chat .rc-dock`,
+ * a two-class selector that beats this package's own one-class rule, and one
+ * of them puts it at 150. Sixty, seventy-eight and eighty — the numbers chat
+ * used to layer itself with — are all underneath that, so the picture opened
+ * below the panel and the call card has been hiding behind the expanded panel
+ * for as long as both have existed.
+ *
+ * They are variables so a portal that needs to reach over them can, without
+ * another specificity war.
+ *
+ * A modal `<dialog>` would side-step the whole argument by using the
+ * browser's top layer, and it was written that way first. It also makes
+ * everything behind it inert, the call card included, which is a worse
+ * problem than the one it solves.
  */
 .rc-viewer {
     position: fixed;
     inset: 0;
-    z-index: 78;
+    z-index: var(--rc-viewer-layer, 2000);
     display: grid;
     place-items: center;
     padding: 24px;
     background: #0b1b3ae6;
     backdrop-filter: blur(2px);
+    color: #fff;
 }
 
 .rc-viewer__frame {
@@ -568,6 +585,7 @@
     display: block;
     max-width: 100%;
     max-height: calc(100vh - 120px);
+    cursor: default;
     border-radius: 10px;
     background: #ffffff14;
 }
@@ -1339,7 +1357,8 @@ body.rc-locked { overflow: hidden; }
 
 /* =============================================================== a call */
 
-.rc-call { position: fixed; top: 84px; right: 20px; z-index: 80; }
+/* Above the picture viewer on purpose — see the note on `.rc-viewer`. */
+.rc-call { position: fixed; top: 84px; right: 20px; z-index: var(--rc-call-layer, 2010); }
 
 .rc-call__card {
     width: 304px;

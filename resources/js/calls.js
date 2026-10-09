@@ -37,6 +37,7 @@ const NO_ANSWER_SECONDS = 45;
  */
 let watcher = null;
 let recorder = null;
+let listeners = [];
 let timeout = null;
 
 export function registerCalls(Alpine) {
@@ -56,6 +57,12 @@ export function registerCalls(Alpine) {
 
         /** Whether this call is meant to be recorded, as the server decided. */
         wanted: false,
+
+        /** Who this call was rung at, as the server listed them. */
+        rang: [],
+
+        /** And which of them have said no so far. */
+        refusals: [],
 
         /**
          * Who this is, taken from the session the client was built with.
@@ -178,6 +185,7 @@ export function registerCalls(Alpine) {
 
                 this.call = call;
                 this.wanted = answer.recording;
+                this.rang = answer.members.filter((id) => id !== this.mine);
 
                 await call.getOrCreate({
                     ring: true,
@@ -218,17 +226,32 @@ export function registerCalls(Alpine) {
         watch(call) {
             this.unwatch();
 
+            /*
+             * Two ways of hearing the same news, on purpose.
+             *
+             * The session is what the documentation points at, and the events
+             * are what the SDK sends — and which of them a given version has
+             * is not something a package can know from here. Either arriving
+             * ends the call; both arriving ends it once, because `giveUp` and
+             * `answered` only act while it is still ringing.
+             */
+            [
+                ['call.accepted', () => this.answered()],
+                ['call.rejected', (event) => this.refused(event?.user?.id ?? null)],
+                ['call.ended', () => this.finish()],
+            ].forEach(([name, handler]) => {
+                try {
+                    const off = call?.on?.(name, handler);
+
+                    if (typeof off === 'function') listeners.push(off);
+                } catch {
+                    /* A version that does not know this event. */
+                }
+            });
+
             const session = call?.state?.session$;
 
-            if (typeof session?.subscribe !== 'function') {
-                /*
-                 * An SDK without the observable. Rather than guess at an event
-                 * name, fall back to what cannot be missed: the client's own
-                 * `call.ended`, which `listen()` already holds. A decline then
-                 * still ends the card, one round trip later than it could.
-                 */
-                return;
-            }
+            if (typeof session?.subscribe !== 'function') return;
 
             watcher = session.subscribe((state) => {
                 if (!state) return;
@@ -254,13 +277,47 @@ export function registerCalls(Alpine) {
                  * hang up on the three who are still deciding.
                  */
                 if (this.state === 'ringing-out' && any('rejected_by')) {
-                    const rang = (call.state.members ?? []).filter((member) => member.user_id !== this.me());
+                    const refused = state.rejected_by ?? {};
 
-                    if (rang.length > 0 && rang.every((member) => (state.rejected_by ?? {})[member.user_id])) {
+                    /*
+                     * Against the list the server rang, not against
+                     * `call.state.members`: that is filled in from the vendor
+                     * when it gets round to it, and a moment after
+                     * `getOrCreate` it can still be empty — in which case
+                     * "has everybody declined" is a question about nobody,
+                     * `every` on an empty list is true, and the guard against
+                     * that made a decline do nothing at all.
+                     */
+                    if (this.rang.length > 0 && this.rang.every((id) => refused[id])) {
                         this.giveUp('They declined.');
                     }
                 }
             });
+        },
+
+        /**
+         * One person saying no, which is not yet the call being over.
+         *
+         * A call rung at four people ends when the fourth declines, not the
+         * first — hanging up on the three still deciding is the failure this
+         * counts to avoid. Where the SDK does not say who refused, one
+         * refusal has to be taken as the answer, because the alternative is
+         * ringing on through a decline.
+         */
+        refused(who) {
+            if (this.state !== 'ringing-out') return;
+
+            if (who === null || this.rang.length <= 1) {
+                this.giveUp('They declined.');
+
+                return;
+            }
+
+            this.refusals = [...new Set([...this.refusals, who])];
+
+            if (this.rang.every((id) => this.refusals.includes(id))) {
+                this.giveUp('They declined.');
+            }
         },
 
         unwatch() {
@@ -272,8 +329,17 @@ export function registerCalls(Alpine) {
                 }
             });
 
+            listeners.forEach((off) => {
+                try {
+                    off();
+                } catch {
+                    /* Already gone. */
+                }
+            });
+
             watcher = null;
             recorder = null;
+            listeners = [];
         },
 
         me() {
@@ -298,7 +364,10 @@ export function registerCalls(Alpine) {
          * buzzing for a call that nobody is waiting on the other end of.
          */
         async giveUp(why) {
+            if (this.state !== 'ringing-out') return;
+
             this.error = why ?? null;
+            this.state = null;
 
             try {
                 await this.call?.leave({ reject: true, reason: 'cancel' });
@@ -340,13 +409,37 @@ export function registerCalls(Alpine) {
             }
         },
 
+        /**
+         * Saying no, which has to arrive at the other end.
+         *
+         * **The card comes down first and the refusal is sent afterwards.**
+         * It used to be a `try`/`finally` around the send with nothing
+         * catching: where `leave()` threw, the card still went — `finally`
+         * saw to that — and the rejection never left the building. The caller
+         * then rang on through a decline until it timed out and told them
+         * nobody had answered, which is a different thing and a worse one to
+         * be told.
+         */
         async decline() {
             sound.stop();
 
+            const call = this.call;
+
+            this.reset();
+
             try {
-                await this.call?.leave({ reject: true, reason: 'decline' });
-            } finally {
-                this.reset();
+                await call?.leave({ reject: true, reason: 'decline' });
+            } catch (error) {
+                console.error('[chat] leave({reject}) was refused; trying reject()', error);
+
+                /* Some versions carry a method of its own. Where neither
+                   works the caller still finds out, from the ring timeout —
+                   late, and saying the wrong thing, but not never. */
+                try {
+                    await call?.reject?.();
+                } catch (second) {
+                    console.error('[chat] the call could not be declined', second);
+                }
             }
         },
 
@@ -481,6 +574,8 @@ export function registerCalls(Alpine) {
             this.recording = false;
             this.seconds = 0;
             this.wanted = false;
+            this.rang = [];
+            this.refusals = [];
         },
     });
 }

@@ -332,7 +332,23 @@ for the first leaves somebody's phone ringing after the person who rang it has
 walked away.
 
 A call that nobody answers gives up after forty-five seconds rather than
-ringing until the tab is closed.
+ringing until the tab is closed. That timeout is the floor and not the
+mechanism: a decline has to end the call when it is declined, and being told
+"no answer" forty-five seconds after somebody pressed Decline is both late and
+untrue.
+
+Which takes two things, because neither can be relied on alone. The refusal
+has to leave the browser — `leave({ reject: true })` wrapped so that a version
+which refuses it falls back to `reject()`, rather than a `finally` that takes
+the card down and lets the message go nowhere. And the caller has to hear it,
+which is `call.state.session$` where the documentation points and the
+`call.rejected` event where the SDK sends one; whichever arrives first ends
+the call, and the second finds it already over.
+
+Who was rung is the list the server returned, not `call.state.members`. Local
+state is filled in when the vendor gets round to it and a moment after
+`getOrCreate` it can still be empty — so "has everybody declined" became a
+question about nobody, and a decline did nothing at all.
 
 ---
 

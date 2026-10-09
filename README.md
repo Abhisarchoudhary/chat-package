@@ -321,6 +321,51 @@ derived from the conversation, so two people pressing call land in one call
 rather than two beside each other, and the card says the call is recorded while
 it rings rather than in a policy nobody read.
 
+**A ringing call is not a call yet.** The caller joins when somebody accepts
+and not before — which is what keeps the microphone off, keeps the recording
+from starting into an empty line, and makes the card say "Calling…" instead of
+counting a duration nobody is on the other end of. It matters most at the
+hanging-up end: Stream's `leave()` does not stop a call ringing, so cancelling
+an unanswered call is `leave({ reject: true, reason: 'cancel' })` and leaving a
+live one is `leave()`. The two are not interchangeable, and using the second
+for the first leaves somebody's phone ringing after the person who rang it has
+walked away.
+
+A call that nobody answers gives up after forty-five seconds rather than
+ringing until the tab is closed.
+
+---
+
+## Sounds
+
+Chat makes a noise, because a badge somebody is not looking at is not a
+notification. A two-note blip for a message that arrives in a conversation
+nobody is reading, a telephone pattern for an incoming call, and a quieter one
+back to the caller while it rings.
+
+**Synthesised, not played.** `resources/js/sound.js` builds the tones with the
+Web Audio API rather than shipping an mp3 — a package consumed out of
+`vendor/` would otherwise have to publish audio files into three `public/`
+directories and keep all three in step, and the failure mode of getting that
+wrong is a 404 that is silent in exactly the way a notification must not be.
+Nothing to publish cannot fall out of step, and there is nothing to add to a
+portal: `registerChat` pulls it in.
+
+**A browser will not make a sound until somebody has touched the page**, which
+is the rule rather than a bug to route around. The first click anywhere in the
+portal wakes the audio context; until then the badge on the bar does the
+telling on its own.
+
+The bell in the panel header turns it off, per machine, in `localStorage` —
+because somebody in an open-plan office wants it off for the afternoon and the
+same person at home wants it on.
+
+**A new message does not open a window.** It did once, and the window arrived
+in front of whatever somebody was in the middle of; worse, a conversation on
+screen reports itself read, so opening it cleared the badge and told the sender
+their message had been read when nobody had read it. Saying a message is here
+is the job. Deciding what somebody should be looking at is not.
+
 ---
 
 ## The identity rule

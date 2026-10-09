@@ -12,6 +12,8 @@
  * it draws, not on a vendor's object graph.
  */
 
+import * as noise from './sound.js';
+
 const ENDPOINTS = {
     token: '/chat/token',
     directory: '/chat/directory',
@@ -63,12 +65,6 @@ async function ask(url, options = {}) {
 }
 
 /**
- * Whether the full chat interface is on screen.
- *
- * The dock is for the rest of the portal. On the chat page it would be a
- * small window of a conversation next to the large one already showing it.
- */
-/**
  * After the page somebody asked for has finished.
  *
  * `requestIdleCallback` where there is one; a timeout where there is not,
@@ -83,10 +79,6 @@ function whenIdle(work) {
     }
 }
 
-function onChatPage() {
-    return !!document.querySelector('.rc-page');
-}
-
 function initialsOf(name) {
     return (name || '?')
         .split(/\s+/)
@@ -96,6 +88,14 @@ function initialsOf(name) {
 }
 
 export function registerChat(Alpine) {
+    /*
+     * A browser grants sound to a page somebody has touched, so the first
+     * touch anywhere is what chat waits for. Asked for now rather than when
+     * the first message lands, because by then it is already too late to be
+     * heard.
+     */
+    noise.unlock();
+
     /** A conversation, as the interface needs it: strings, numbers and booleans. */
     function snapshot(channel, me) {
         const members = Object.values(channel.state?.members ?? {})
@@ -309,6 +309,22 @@ export function registerChat(Alpine) {
         thread: null,
 
         /**
+         * Whether chat makes a noise, which is this browser's business.
+         *
+         * Not a portal setting and not a column on the user: somebody in an
+         * open-plan office turns it off for the afternoon, and somebody at
+         * home wants it on, and they are the same person on two machines. It
+         * lives in `localStorage`, so the answer stays with the machine that
+         * was asked.
+         */
+        sound: ! noise.muted(),
+
+        toggleSound() {
+            this.sound = ! this.sound;
+            noise.mute(! this.sound);
+        },
+
+        /**
          * Connecting, once.
          *
          * The dock and the page both ask for it — the dock is in the layout and
@@ -429,9 +445,18 @@ export function registerChat(Alpine) {
                     } else {
                         this.unreadOf = { ...this.unreadOf, [cid]: (this.unreadOf[cid] ?? 0) + 1 };
 
-                        if (cid !== this.active && !onChatPage()) {
-                            this.openBox(cid);
-                        }
+                        /*
+                         * A badge and a sound, and not a window.
+                         *
+                         * This used to open the conversation by itself, which
+                         * put it in front of somebody mid-sentence in another
+                         * record — and, because a drawn conversation reports
+                         * itself read, cleared the badge it had just set and
+                         * told the sender it had been read. Nobody had read
+                         * it. Saying a message is here is the job; deciding
+                         * what somebody should be looking at is not.
+                         */
+                        noise.message();
                     }
                 }
 

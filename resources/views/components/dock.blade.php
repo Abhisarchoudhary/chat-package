@@ -117,6 +117,19 @@
                 </span>
             </span>
 
+            {{-- Whether chat makes a noise. It belongs in the header and
+                 not in a settings page, because the moment somebody wants it
+                 off is the moment it has just gone off in a meeting. --}}
+            <button
+                type="button"
+                class="rc-icon-button"
+                @click="$store.chat.toggleSound()"
+                :title="$store.chat.sound ? '{{ __('Mute notifications') }}' : '{{ __('Unmute notifications') }}'"
+            >
+                <template x-if="$store.chat.sound"><x-chat::icon name="bell" /></template>
+                <template x-if="! $store.chat.sound"><x-chat::icon name="bell-off" /></template>
+            </button>
+
             <button
                 type="button"
                 class="rc-icon-button"

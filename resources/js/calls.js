@@ -1,5 +1,5 @@
-
 import { headers } from './chat.js';
+import * as sound from './sound.js';
 
 /**
  * Audio calls, from the same conversation people are already in.
@@ -16,9 +16,28 @@ import { headers } from './chat.js';
  *
  * **Every call is recorded**, and the interface says so while it rings rather
  * than in a policy nobody read.
+ *
+ * **A ringing call is not a call yet.** Stream's model is that the caller
+ * joins once somebody accepts, and the difference matters in four places at
+ * once: what the card says, when the microphone goes live, when the recording
+ * starts, and — the one that embarrasses — what hanging up does. Leaving a
+ * call does not stop it ringing; cancelling it does. So nothing here joins
+ * until the session says somebody picked up.
  */
 
 const CALLS_ENDPOINT = '/chat/calls';
+
+/** Nobody waits for a phone forever. */
+const NO_ANSWER_SECONDS = 45;
+
+/*
+ * Outside Alpine, for the reason chat.js gives at length: a subscription holds
+ * the call, which holds the client, which holds every call. Handed to a
+ * reactive proxy that is a graph which cannot be walked.
+ */
+let watcher = null;
+let recorder = null;
+let timeout = null;
 
 export function registerCalls(Alpine) {
     Alpine.store('calls', {
@@ -34,6 +53,21 @@ export function registerCalls(Alpine) {
         recording: false,
         error: null,
         ticker: null,
+
+        /** Whether this call is meant to be recorded, as the server decided. */
+        wanted: false,
+
+        /**
+         * Who this is, taken from the session the client was built with.
+         *
+         * Needed to work out whether everybody who was rung has said no, and
+         * taken from here rather than from chat's store because a null there —
+         * a store not yet connected, a page where only calls are registered —
+         * does not announce itself: it quietly makes "everybody declined" a
+         * thing that can never be true, and an outgoing call then rings until
+         * it times out however firmly it was refused.
+         */
+        mine: null,
 
         /**
          * The video client shares chat's token: the same person, one identity.
@@ -68,6 +102,8 @@ export function registerCalls(Alpine) {
                     return response.json();
                 });
 
+                this.mine = session.user_id ?? session.user?.id ?? null;
+
                 this.client = new StreamVideoClient({
                     apiKey: session.api_key,
                     user: session.user,
@@ -100,9 +136,12 @@ export function registerCalls(Alpine) {
                 this.call = call;
                 this.title = event.call.created_by?.name ?? 'Incoming call';
                 this.state = 'ringing-in';
+
+                /* A phone that does not ring is a missed call. */
+                sound.ring();
             });
 
-            this.client.on('call.ended', () => this.reset());
+            this.client.on('call.ended', () => this.finish());
         },
 
         /**
@@ -138,13 +177,21 @@ export function registerCalls(Alpine) {
                 const call = client.call(answer.call_type, answer.call_id);
 
                 this.call = call;
+                this.wanted = answer.recording;
 
                 await call.getOrCreate({
                     ring: true,
                     data: { members: answer.members.map((id) => ({ user_id: id })) },
                 });
 
-                await this.join(answer.recording);
+                /*
+                 * And now wait, which is the whole of the fix: the card says
+                 * "Calling…", the microphone is still off, and nothing is
+                 * being recorded until somebody is there to be recorded.
+                 */
+                sound.ringback();
+                this.watch(call);
+                this.giveUpEventually();
             } catch (error) {
                 /* The card says one sentence; the console says which one of a
                    token, a permission, a network and a vendor it was. */
@@ -158,10 +205,135 @@ export function registerCalls(Alpine) {
             }
         },
 
-        async accept() {
+        /**
+         * What the other end did about it.
+         *
+         * Stream keeps this on the call's session rather than sending it as an
+         * event: `accepted_by`, `rejected_by` and `missed_by`, each keyed by
+         * the user it happened to. Watching it is how the caller finds out
+         * anything at all — without it an outgoing call sits on "Calling…"
+         * through a decline, through a timeout, and through the other person
+         * putting their phone back in their pocket.
+         */
+        watch(call) {
+            this.unwatch();
+
+            const session = call?.state?.session$;
+
+            if (typeof session?.subscribe !== 'function') {
+                /*
+                 * An SDK without the observable. Rather than guess at an event
+                 * name, fall back to what cannot be missed: the client's own
+                 * `call.ended`, which `listen()` already holds. A decline then
+                 * still ends the card, one round trip later than it could.
+                 */
+                return;
+            }
+
+            watcher = session.subscribe((state) => {
+                if (!state) return;
+
+                const any = (of) => Object.keys(state[of] ?? {}).length > 0;
+
+                /* Somebody picked up: this is where the caller joins. */
+                if (this.state === 'ringing-out' && any('accepted_by')) {
+                    this.answered();
+
+                    return;
+                }
+
+                if (this.state === 'ringing-out' && any('missed_by')) {
+                    this.giveUp('No answer.');
+
+                    return;
+                }
+
+                /*
+                 * Rejected by everybody who was rung. One person declining a
+                 * call to four is not the call being over, and saying so would
+                 * hang up on the three who are still deciding.
+                 */
+                if (this.state === 'ringing-out' && any('rejected_by')) {
+                    const rang = (call.state.members ?? []).filter((member) => member.user_id !== this.me());
+
+                    if (rang.length > 0 && rang.every((member) => (state.rejected_by ?? {})[member.user_id])) {
+                        this.giveUp('They declined.');
+                    }
+                }
+            });
+        },
+
+        unwatch() {
+            [watcher, recorder].forEach((subscription) => {
+                try {
+                    subscription?.unsubscribe?.();
+                } catch {
+                    /* Already gone. */
+                }
+            });
+
+            watcher = null;
+            recorder = null;
+        },
+
+        me() {
+            return this.mine ?? Alpine.store('chat')?.me ?? null;
+        },
+
+        /** Picked up at the other end. */
+        async answered() {
+            if (this.state !== 'ringing-out') return;
+
+            clearTimeout(timeout);
+            timeout = null;
+
+            await this.join(this.wanted);
+        },
+
+        /**
+         * Nobody is coming.
+         *
+         * Cancelled rather than left, because leaving a call does not stop it
+         * ringing — the signalling runs on, and somebody's phone goes on
+         * buzzing for a call that nobody is waiting on the other end of.
+         */
+        async giveUp(why) {
+            this.error = why ?? null;
+
             try {
-                await this.call.accept();
-                await this.join(true);
+                await this.call?.leave({ reject: true, reason: 'cancel' });
+            } catch {
+                /* It may already be over; the card still has to come down. */
+            }
+
+            sound.ended();
+            this.reset();
+        },
+
+        giveUpEventually() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                if (this.state === 'ringing-out') this.giveUp('No answer.');
+            }, NO_ANSWER_SECONDS * 1000);
+        },
+
+        async accept() {
+            sound.stop();
+
+            /* Accepting tells the caller, which is what turns their card
+               from "Calling…" into a call. Joining is what connects it, and
+               joining on its own is enough where an SDK has no `accept`. */
+            try {
+                await this.call?.accept?.();
+            } catch {
+                /* Said by joining instead. */
+            }
+
+            try {
+                /* Only the caller records: two ends both starting a recording
+                   is one recording and one swallowed error, and the end that
+                   swallowed it then says the call is not being recorded. */
+                await this.join(false);
             } catch (error) {
                 this.error = 'That call could not be joined.';
                 this.reset();
@@ -169,14 +341,18 @@ export function registerCalls(Alpine) {
         },
 
         async decline() {
+            sound.stop();
+
             try {
-                await this.call?.leave({ reject: true });
+                await this.call?.leave({ reject: true, reason: 'decline' });
             } finally {
                 this.reset();
             }
         },
 
         async join(record) {
+            sound.stop();
+
             // Audio only: the camera is never turned on, rather than turned off.
             await this.call.camera.disable().catch(() => {});
             await this.call.join();
@@ -197,6 +373,12 @@ export function registerCalls(Alpine) {
 
             this.state = 'live';
             this.count();
+            sound.connected();
+
+            /* Whether it is being recorded is the call's answer, not this
+               end's: both ends then say the same thing, and the end that did
+               not start it stops claiming it is not happening. */
+            this.follow();
 
             if (record) {
                 try {
@@ -211,18 +393,65 @@ export function registerCalls(Alpine) {
             }
         },
 
+        /** The call's own recording flag, where the SDK publishes one. */
+        follow() {
+            const recording = this.call?.state?.recording$;
+
+            if (typeof recording?.subscribe !== 'function') return;
+
+            recorder = recording.subscribe((on) => {
+                this.recording = !! on;
+            });
+        },
+
         async toggleMute() {
             await this.call?.microphone.toggle();
             this.muted = !this.muted;
         },
 
+        /**
+         * Hanging up, which is two different things.
+         *
+         * While it is still ringing the call has to be cancelled — `leave()`
+         * does not stop the signalling, so the other phone would go on ringing
+         * after the person who rang it had walked away. Once it is live,
+         * leaving is exactly right.
+         */
         async hangUp() {
+            if (this.state === 'ringing-out') {
+                await this.giveUp(null);
+
+                return;
+            }
+
+            /*
+             * Stopping the recording must not be able to stop the hanging up.
+             * These were one `try` with one `finally`, so a recording that was
+             * already over — or that this end never had the right to stop —
+             * threw on the way past and left somebody still in the call,
+             * pressing a button that had already done the only part of its job
+             * that did not matter.
+             */
             try {
                 if (this.recording) await this.call?.stopRecording();
+            } catch {
+                /* It stops when the call does. */
+            }
+
+            try {
                 await this.call?.leave();
             } finally {
+                sound.stop();
                 this.reset();
             }
+        },
+
+        /** Over at the other end. */
+        finish() {
+            if (this.state === null) return;
+
+            sound.ended();
+            this.reset();
         },
 
         count() {
@@ -240,11 +469,18 @@ export function registerCalls(Alpine) {
 
         reset() {
             clearInterval(this.ticker);
+            clearTimeout(timeout);
+            timeout = null;
+
+            this.unwatch();
+            sound.stop();
+
             this.state = null;
             this.call = null;
             this.muted = false;
             this.recording = false;
             this.seconds = 0;
+            this.wanted = false;
         },
     });
 }

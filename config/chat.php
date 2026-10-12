@@ -30,10 +30,20 @@ return [
      */
     'organisation' => env('CHAT_ORGANISATION', 'rypm'),
 
+    /*
+     * Every business in the directory, by key.
+     *
+     * It lives here rather than in each portal's .env because every portal
+     * needs the label for every one of them: a Royal York property manager
+     * looking somebody up has to see "Bridgepoint Maintenance" and not "Bpm".
+     * Four copies of this list in four .env files would be four lists that
+     * drift.
+     */
     'organisations' => [
         'rypm' => 'Royal York Property Management',
         'otr' => 'MSR',
         'crp' => 'Recruitment',
+        'bpm' => 'Bridgepoint Maintenance',
     ],
 
     /*

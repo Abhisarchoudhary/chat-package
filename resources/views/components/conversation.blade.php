@@ -14,8 +14,38 @@
     class="rc-talk"
 >
     <div class="rc-messages" x-ref="list">
+        {{-- What is above the first message, said rather than left to be
+             discovered.
+
+             Scrolling to the top fetches it on its own, and this strip is
+             still worth the room: a conversation short enough to fit does not
+             scroll at all, so there would be no way to ask for its history;
+             a fetch in flight is otherwise a pause with nothing to explain
+             it; and the beginning of a conversation reads exactly like a
+             conversation that has stopped loading. --}}
+        <template x-if="messages.length > 0">
+            <div class="rc-earlier">
+                <template x-if="older.loading">
+                    <span class="rc-earlier__wait">{{ __('Loading earlier messages…') }}</span>
+                </template>
+
+                <template x-if="! older.loading && older.more">
+                    <button type="button" class="rc-earlier__more" @click="more()">
+                        {{ __('Load earlier messages') }}
+                    </button>
+                </template>
+
+                <template x-if="! older.loading && ! older.more">
+                    <span class="rc-earlier__top">{{ __('This is the beginning of the conversation.') }}</span>
+                </template>
+            </div>
+        </template>
+
         <template x-for="(message, index) in messages" :key="message.id">
-            <div>
+            {{-- The id is on the row because loading the page above has to put
+                 the reading position back, and it does that by finding this
+                 row again rather than by arithmetic. See `more()`. --}}
+            <div :data-mid="message.id">
                 <template x-if="opensDay(index)">
                     <div class="rc-day"><span x-text="dayOf(message)"></span></div>
                 </template>

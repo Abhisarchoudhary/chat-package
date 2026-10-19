@@ -435,6 +435,47 @@ than the one it solves.
 
 ---
 
+## Reading back
+
+A conversation opens on its last **40 messages** and loads the 40 above them
+when somebody reaches the top, and the 40 above those, as far back as Stream
+holds. `PAGE` in `chat.js` is the one number for both.
+
+It used to open on 40 and stop there — not as a limit anybody chose, but
+because nothing ever asked for a forty-first. Scrolling up reached the oldest
+message loaded and the conversation simply ended, which in a busy room is about
+a day. Nothing had been deleted; it had never been fetched.
+
+Three things are worth knowing if this is touched again:
+
+**Stream's client already knows whether there is more.** It keeps
+`channel.state.messagePagination.hasPrev` per conversation, worked out from the
+size of the page it asked for against the size it got, for the first query and
+every one after it. `hold()` copies that out — `channel.state` is the vendor's
+object graph and never goes into Alpine's, for the reason at the top of
+`chat.js` — and nothing here counts messages to guess at it.
+
+**The reading position is held on a row, not on a distance.** Prepending to a
+scrolled list leaves `scrollTop` where it was, which is a different place in a
+taller list, so the line being read jumps away. Holding the distance from the
+bottom is nearly right and wrong at exactly the place somebody is looking: the
+top message always has its date drawn above it, and once a page goes in above
+it that date belongs to another message and is taken off this one. That row is
+the only one whose own shape changes, so `more()` anchors the **second** row —
+the nearest one to the reading position that cannot move — finds it again
+afterwards by `data-mid`, and scrolls the difference away. Measured in a
+browser across three loads: every row on screen moved 0px.
+
+**The strip at the top of the list earns its room.** A conversation short
+enough not to scroll can never reach the top, so there has to be a button; a
+fetch in flight is otherwise a pause with nothing to explain it; and the
+beginning of a conversation reads exactly like one that has stopped loading. A
+request that fails leaves the offer where it is — a failed request is not an
+answer about what exists, and retiring the button would tell somebody they had
+reached the beginning because their wifi went.
+
+---
+
 ## The identity rule
 
 A person is their email address, everywhere — the same rule the three portals

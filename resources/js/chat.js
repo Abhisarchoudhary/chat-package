@@ -25,6 +25,17 @@ const ENDPOINTS = {
 const DOCK_LIMIT = 3;
 const OPEN_KEY = 'revun.chat.open';
 
+/**
+ * How many messages a conversation opens with, and how many a scroll up adds.
+ *
+ * One number for both because they answer the same question -- how much is
+ * worth one request -- and because they were two numbers before: the list
+ * asked for forty and `watch()` was left on Stream's own default of
+ * twenty-five, so a conversation started from the directory opened with less
+ * history than the same conversation opened from the list.
+ */
+const PAGE = 40;
+
 /** Outside Alpine, on purpose — see the note above. */
 let client = null;
 const channels = new Map();
@@ -364,6 +375,21 @@ export function registerChat(Alpine) {
         /** Messages by cid, also plain. */
         messages: {},
 
+        /**
+         * Whether a conversation has a page above the one held, by cid.
+         *
+         * It cannot be read off the snapshot -- forty messages held means
+         * either that forty exist or that four hundred do -- and it is not
+         * ours to work out: Stream's client keeps the answer per conversation,
+         * from the size of the page it asked for against the size it got.
+         * This is that answer, copied out, because `channel.state` is the
+         * vendor's object graph and never goes into Alpine's. See the top.
+         */
+        moreAbove: {},
+
+        /** And which of them have a request for it in flight. */
+        loadingAbove: {},
+
         /** Conversations with a floating box open. */
         open: [],
 
@@ -534,7 +560,7 @@ export function registerChat(Alpine) {
                 client.queryChannels(
                     { members: { $in: [this.me] } },
                     [{ last_message_at: -1 }],
-                    { watch: true, state: true, limit: 30, message_limit: 40 },
+                    { watch: true, state: true, limit: 30, message_limit: PAGE },
                 ),
             ]);
 
@@ -563,9 +589,63 @@ export function registerChat(Alpine) {
         /** Keep the real channel here, out of anything reactive. */
         hold(channel) {
             channels.set(channel.cid, channel);
+
             this.messages[channel.cid] = (channel.state?.messages ?? [])
                 .filter((message) => message.type !== 'deleted')
                 .map((message) => messageOf(message, this.me, channel));
+
+            this.moreAbove = {
+                ...this.moreAbove,
+                [channel.cid]: !! channel.state?.messagePagination?.hasPrev,
+            };
+        },
+
+        /**
+         * The page above the one on screen.
+         *
+         * Stream is asked for the messages before the oldest one held, and
+         * puts them into the channel's own state -- so the snapshot is rebuilt
+         * from that state by the same `hold()` an arriving message goes
+         * through, and there is one path for "the list changed" rather than
+         * two that have to agree.
+         *
+         * Answers how many arrived, because the caller is holding a reading
+         * position open and has nothing to put back if nothing came.
+         */
+        async earlier(cid) {
+            const channel = this.raw(cid);
+
+            if (! channel || this.loadingAbove[cid] || ! this.moreAbove[cid]) {
+                return 0;
+            }
+
+            /* Held in ascending order, so the first one held is the oldest. */
+            const oldest = channel.state?.messages?.[0]?.id ?? null;
+
+            if (oldest === null) {
+                return 0;
+            }
+
+            this.loadingAbove = { ...this.loadingAbove, [cid]: true };
+
+            try {
+                const answer = await channel.query({ messages: { limit: PAGE, id_lt: oldest } });
+
+                this.hold(channel);
+
+                return (answer?.messages ?? []).length;
+            } catch {
+                /*
+                 * Nothing is written about what exists -- `hold()` is what
+                 * copies that out, and it was not reached. A request that
+                 * failed is not an answer, and retiring the offer here would
+                 * tell somebody they had reached the beginning of a
+                 * conversation because their wifi went.
+                 */
+                return 0;
+            } finally {
+                this.loadingAbove = { ...this.loadingAbove, [cid]: false };
+            }
         },
 
         raw(cid) {
@@ -578,7 +658,7 @@ export function registerChat(Alpine) {
 
                 if (['notification.message_new', 'notification.added_to_channel'].includes(event.type) && event.channel && !channels.has(event.channel.cid)) {
                     const channel = client.channel(event.channel.type, event.channel.id);
-                    await channel.watch();
+                    await channel.watch({ messages: { limit: PAGE } });
                     this.hold(channel);
                 }
 
@@ -949,7 +1029,7 @@ export function registerChat(Alpine) {
          */
         async messagePerson(userId) {
             const channel = client.channel('messaging', { members: [this.me, userId] });
-            await channel.watch();
+            await channel.watch({ messages: { limit: PAGE } });
 
             this.hold(channel);
             this.refresh();
@@ -962,7 +1042,7 @@ export function registerChat(Alpine) {
             const made = await ask(ENDPOINTS.channels, { method: 'POST', body: JSON.stringify(payload) });
             const channel = client.channel(made.type, made.id);
 
-            await channel.watch();
+            await channel.watch({ messages: { limit: PAGE } });
 
             this.hold(channel);
             this.refresh();
@@ -978,7 +1058,7 @@ export function registerChat(Alpine) {
                 body: JSON.stringify({ type: channel.type, id: channel.id, add }),
             });
 
-            await channel.watch();
+            await channel.watch({ messages: { limit: PAGE } });
             this.hold(channel);
             this.refresh();
         },
@@ -1039,6 +1119,13 @@ export function registerChat(Alpine) {
             return this.$store.chat.messages[this.cid] ?? [];
         },
 
+        /** What is above the top of the list, and whether it is on its way. */
+        get older() {
+            return {
+                more: !! this.$store.chat.moreAbove[this.cid],
+                loading: !! this.$store.chat.loadingAbove[this.cid],
+            };
+        },
 
         init() {
             /* Say we are drawing it, so a message arriving in front of
@@ -1047,7 +1134,28 @@ export function registerChat(Alpine) {
             this.$store.chat.markRead(this.cid);
             this.scroll();
 
-            /* Coming back to the tab is reading it too. */
+            /*
+             * Reaching the top of the list is the request for what is above
+             * it.
+             *
+             * On the list's own scroll event rather than an observer watching
+             * a sentinel: the list is the thing that scrolls and it is already
+             * to hand. And a little short of the top, so the page is being
+             * fetched while somebody is still moving towards it rather than
+             * after they have stopped and found nothing.
+             */
+            this.$nextTick(() => {
+                const list = this.$refs.list;
+
+                if (! list) return;
+
+                this.onScroll = () => {
+                    if (list.scrollTop < 160) this.more();
+                };
+
+                list.addEventListener('scroll', this.onScroll, { passive: true });
+            });
+
             /* Coming back to the tab is reading what is in front of them. */
             this.onVisible = () => {
                 if (document.visibilityState === 'visible') this.$store.chat.markRead(this.cid);
@@ -1076,6 +1184,50 @@ export function registerChat(Alpine) {
         destroy() {
             this.$store.chat.watch(this.cid, false);
             document.removeEventListener('visibilitychange', this.onVisible);
+
+            if (this.onScroll) {
+                this.$refs.list?.removeEventListener('scroll', this.onScroll);
+            }
+        },
+
+        /**
+         * Fetching the page above without moving what somebody is reading.
+         *
+         * Messages go in at the top, and a list that has grown taller while
+         * `scrollTop` stayed the same is a list showing a different part of
+         * itself: the line being read jumps away and has to be found again.
+         *
+         * So a row is held rather than a distance, and the second row rather
+         * than the first. Measuring from the bottom, or from the top row, is
+         * nearly right and visibly wrong at exactly the place somebody is
+         * looking: the top message in a list always has the date drawn above
+         * it, and once a page goes in above it that date belongs to another
+         * message and is taken off this one. That row is the only one whose
+         * own shape changes -- everything below it is untouched -- so the row
+         * after it is the nearest thing to where somebody is reading that is
+         * guaranteed not to move. It is found again afterwards and the
+         * difference is scrolled away.
+         */
+        async more() {
+            const list = this.$refs.list;
+
+            if (! list) return;
+
+            const rows = list.querySelectorAll('[data-mid]');
+            const anchor = rows[1] ?? rows[0] ?? null;
+            const mid = anchor?.dataset.mid ?? null;
+            const was = anchor?.offsetTop ?? 0;
+            const from = list.scrollTop;
+
+            if (await this.$store.chat.earlier(this.cid) === 0) return;
+
+            this.$nextTick(() => {
+                const same = mid === null ? null : list.querySelector(`[data-mid="${mid}"]`);
+
+                if (same !== null) {
+                    list.scrollTop = from + (same.offsetTop - was);
+                }
+            });
         },
 
         async send() {

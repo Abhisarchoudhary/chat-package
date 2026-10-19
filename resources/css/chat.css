@@ -342,6 +342,42 @@
 .rc-messages::-webkit-scrollbar { width: 10px; }
 .rc-messages::-webkit-scrollbar-thumb { background: #dce3ee; border-radius: 5px; }
 
+/* What is above the top of the list: the way to it, or that there is none. */
+.rc-earlier {
+    /* `none`, because `.rc-messages` is a column and the default would
+       stretch this strip to share the height with the conversation. */
+    flex: none;
+    display: flex;
+    justify-content: center;
+    padding: 6px 18px 2px;
+}
+
+.rc-earlier__more {
+    border: 1px solid var(--rc-line);
+    background: var(--rc-surface);
+    border-radius: 999px;
+    padding: 5px 14px;
+    color: var(--rc-muted);
+    font: inherit;
+    font-size: var(--rc-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rc-earlier__more:hover {
+    background: var(--rc-hover);
+    color: var(--rc-text);
+}
+
+.rc-earlier__wait,
+.rc-earlier__top {
+    color: var(--rc-muted);
+    font-size: var(--rc-text-sm);
+    padding: 5px 0;
+}
+
+.rc-box .rc-earlier { padding-inline: 12px; }
+
 /* The day, drawn as a line with the date sitting on it. */
 .rc-day {
     display: flex;

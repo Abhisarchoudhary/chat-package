@@ -13,7 +13,14 @@
     data-max-mb="{{ config('chat.files.max_megabytes', 25) }}"
     class="rc-talk"
 >
-    <div class="rc-messages" x-ref="list">
+    {{-- The scroll handler is declared here rather than attached in `init()`.
+         It was attached there, against `$refs.list`, and `$refs` is filled
+         while Alpine walks the children -- which happens after `x-data`'s own
+         `init()` runs. A `$nextTick` is usually long enough and is not a
+         promise, and when it is not long enough the attach returns quietly and
+         the conversation simply never loads its history. Declared on the
+         element there is no moment to be early for. --}}
+    <div class="rc-messages" x-ref="list" @scroll.passive="nearTop($event.target)">
         {{-- What is above the first message, said rather than left to be
              discovered.
 

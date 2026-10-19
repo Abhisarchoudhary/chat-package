@@ -1134,28 +1134,6 @@ export function registerChat(Alpine) {
             this.$store.chat.markRead(this.cid);
             this.scroll();
 
-            /*
-             * Reaching the top of the list is the request for what is above
-             * it.
-             *
-             * On the list's own scroll event rather than an observer watching
-             * a sentinel: the list is the thing that scrolls and it is already
-             * to hand. And a little short of the top, so the page is being
-             * fetched while somebody is still moving towards it rather than
-             * after they have stopped and found nothing.
-             */
-            this.$nextTick(() => {
-                const list = this.$refs.list;
-
-                if (! list) return;
-
-                this.onScroll = () => {
-                    if (list.scrollTop < 160) this.more();
-                };
-
-                list.addEventListener('scroll', this.onScroll, { passive: true });
-            });
-
             /* Coming back to the tab is reading what is in front of them. */
             this.onVisible = () => {
                 if (document.visibilityState === 'visible') this.$store.chat.markRead(this.cid);
@@ -1184,10 +1162,18 @@ export function registerChat(Alpine) {
         destroy() {
             this.$store.chat.watch(this.cid, false);
             document.removeEventListener('visibilitychange', this.onVisible);
+        },
 
-            if (this.onScroll) {
-                this.$refs.list?.removeEventListener('scroll', this.onScroll);
-            }
+        /**
+         * Reaching the top of the list is the request for what is above it.
+         *
+         * Declared on the list in the markup rather than attached here -- see
+         * the note there. A little short of the top, so the page is being
+         * fetched while somebody is still moving towards it rather than after
+         * they have stopped and found nothing.
+         */
+        nearTop(list) {
+            if (list.scrollTop < 160) this.more();
         },
 
         /**

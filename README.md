@@ -466,6 +466,15 @@ the nearest one to the reading position that cannot move — finds it again
 afterwards by `data-mid`, and scrolls the difference away. Measured in a
 browser across three loads: every row on screen moved 0px.
 
+**The scroll handler is declared on the list, not attached in `init()`.** It
+was attached there once, against `$refs.list` — and `$refs` is filled while
+Alpine walks an element's children, which happens *after* that element's own
+`x-data` has run its `init()`. A `$nextTick` is usually long enough and is not
+a promise of anything, and where it is not long enough the attach returns
+quietly and that conversation never loads its history: working in one place and
+not in another, with nothing in the console either way. Declared on the element
+there is no moment to be early for, and Alpine takes the listener off itself.
+
 **The strip at the top of the list earns its room.** A conversation short
 enough not to scroll can never reach the top, so there has to be a button; a
 fetch in flight is otherwise a pause with nothing to explain it; and the

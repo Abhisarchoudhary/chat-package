@@ -118,19 +118,6 @@
                                 {{-- An address somebody pasted, as a reference
                                      to a page and not as the page's logo blown
                                      up to the width of the conversation. --}}
-                                <template x-if="file.kind === 'link'">
-                                    <a class="rc-card" :href="file.url" target="_blank" rel="noopener noreferrer">
-                                        <template x-if="file.thumb">
-                                            <img class="rc-card__shot" :src="file.thumb" alt="" loading="lazy">
-                                        </template>
-
-                                        <span class="rc-card__body">
-                                            <span class="rc-card__title" x-text="file.title"></span>
-                                            <span class="rc-card__host" x-text="file.host"></span>
-                                        </span>
-                                    </a>
-                                </template>
-
                                 <template x-if="file.kind === 'file'">
                                     <a class="rc-file" :href="file.url" target="_blank" rel="noopener noreferrer">
                                         <x-chat::icon name="file" />

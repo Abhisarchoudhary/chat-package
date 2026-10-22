@@ -149,15 +149,6 @@ function linkify(text) {
     });
 }
 
-/** The site an address belongs to, for a preview that should not shout. */
-function hostOf(url) {
-    try {
-        return new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-        return '';
-    }
-}
-
 function initialsOf(name) {
     return (name || '?')
         .split(/\s+/)
@@ -325,36 +316,28 @@ export function registerChat(Alpine) {
             replies: message.reply_count ?? 0,
             parentId: message.parent_id ?? null,
             /*
-             * Three things arrive as "attachments" and only one of them is a
-             * file somebody chose to send.
+             * **Only what somebody actually attached.**
              *
              * Stream scrapes any address in a message and hands back what the
-             * page says about itself — its title, and its og:image, which for
-             * most sites is a logo. Drawn as a photograph that is a company
-             * mark three hundred pixels wide sitting under a one-line message.
-             * It is a reference to a page, so it is drawn as one: a thumbnail
-             * the size of a line of text, the title, and the host.
+             * page says about itself: a title and an `og:image`, which for
+             * most sites is a logo sized for a social card. Drawn under a
+             * one-line message it is a picture of the company, the same one
+             * every time, saying nothing the sentence had not — and for a
+             * link behind a sign-in it describes the sign-in screen rather
+             * than the page.
+             *
+             * The address in the text is already a real link (see `linkify`),
+             * which is all a link needs to be. So the scrape is dropped and
+             * `og_scrape_url` is what identifies it: a file somebody chose to
+             * send never has one.
              */
-            attachments: (message.attachments ?? []).map((attachment) => {
-                const link = attachment.og_scrape_url ?? attachment.title_link ?? null;
-
-                if (link !== null) {
-                    return {
-                        kind: 'link',
-                        url: link,
-                        title: attachment.title || hostOf(link) || link,
-                        text: attachment.text ?? null,
-                        host: hostOf(link),
-                        thumb: attachment.thumb_url ?? attachment.image_url ?? null,
-                    };
-                }
-
-                return {
+            attachments: (message.attachments ?? [])
+                .filter((attachment) => !attachment.og_scrape_url)
+                .map((attachment) => ({
                     kind: attachment.type === 'image' ? 'image' : 'file',
                     url: attachment.image_url ?? attachment.asset_url ?? null,
                     title: attachment.title ?? attachment.fallback ?? 'File',
-                };
-            }),
+                })),
         };
     }
 

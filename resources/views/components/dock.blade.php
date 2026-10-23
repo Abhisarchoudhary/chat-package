@@ -49,7 +49,25 @@
     ]));
 @endphp
 
-<div class="rc-chat" x-data="chatBar()" x-cloak>
+@php
+    /*
+     * Where this portal mounts the server's half. Named routes rather than
+     * paths, so a portal that mounts them behind its own guard — under its own
+     * prefix, as an audience on another guard has to — is followed without this
+     * file knowing anything about it.
+     */
+    $chatEndpoints = collect([
+        'token' => 'chat.token',
+        'directory' => 'chat.directory',
+        'abilities' => 'chat.abilities',
+        'channels' => 'chat.channels.create',
+        'direct' => 'chat.direct',
+        'members' => 'chat.channels.members',
+    ])->filter(fn (string $name) => \Illuminate\Support\Facades\Route::has($name))
+        ->map(fn (string $name) => route($name, [], false));
+@endphp
+
+<div class="rc-chat" x-data="chatBar()" x-cloak data-chat-endpoints="{{ $chatEndpoints->toJson() }}">
 {{-- The call card rings everywhere, whatever the bar is showing. --}}
 <x-chat::call />
 

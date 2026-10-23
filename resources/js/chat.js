@@ -14,6 +14,14 @@
 
 import * as noise from './sound.js';
 
+/*
+ * Where the server's half of chat lives.
+ *
+ * **Defaults, not constants.** A portal can mount these somewhere else — one
+ * whose audience signs in on its own guard needs them behind that guard's
+ * middleware, which means its own prefix — and says so on the dock element.
+ * Read once here, so a page that says nothing is the portal every portal was.
+ */
 const ENDPOINTS = {
     token: '/chat/token',
     directory: '/chat/directory',
@@ -22,6 +30,17 @@ const ENDPOINTS = {
     direct: '/chat/direct',
     members: '/chat/channels/members',
 };
+
+{
+    const root = document.querySelector('[data-chat-endpoints]');
+    if (root) {
+        try {
+            Object.assign(ENDPOINTS, JSON.parse(root.dataset.chatEndpoints));
+        } catch (e) {
+            // Keep the defaults: a bad attribute must not take chat down with it.
+        }
+    }
+}
 
 const DOCK_LIMIT = 3;
 const OPEN_KEY = 'revun.chat.open';

@@ -25,13 +25,28 @@
     the call card lives inside the bar rather than beside it.
 --}}
 @php
-    $tabs = [
+    /*
+     * Channels and Threads are left off for somebody the portal has limited to
+     * direct messages (Contracts\RestrictsChat) — a group is a room whose
+     * membership drifts and a thread is a second place a conversation lives,
+     * and neither is worth explaining to somebody here to ask one question.
+     *
+     * A portal that does not limit anybody keeps all five, which is what every
+     * portal had before this.
+     */
+    $chatDirectory = app(\Revun\Chat\Contracts\ParticipantDirectory::class);
+    $chatPerson = $chatDirectory->current();
+    $directOnly = $chatPerson !== null
+        && $chatDirectory instanceof \Revun\Chat\Contracts\RestrictsChat
+        && $chatDirectory->onlyDirectMessages($chatPerson);
+
+    $tabs = array_values(array_filter([
         ['key' => 'pins', 'icon' => 'pin', 'label' => __('My Pins')],
         ['key' => 'chats', 'icon' => 'message', 'label' => __('Chats')],
-        ['key' => 'channels', 'icon' => 'hash', 'label' => __('Channels')],
-        ['key' => 'threads', 'icon' => 'thread', 'label' => __('Threads')],
+        $directOnly ? null : ['key' => 'channels', 'icon' => 'hash', 'label' => __('Channels')],
+        $directOnly ? null : ['key' => 'threads', 'icon' => 'thread', 'label' => __('Threads')],
         ['key' => 'people', 'icon' => 'people', 'label' => __('People')],
-    ];
+    ]));
 @endphp
 
 <div class="rc-chat" x-data="chatBar()" x-cloak>

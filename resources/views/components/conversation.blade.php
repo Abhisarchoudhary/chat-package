@@ -1,4 +1,16 @@
 @props(['for' => '$store.chat.active'])
+@php
+    /*
+     * Somebody the portal has limited to direct messages gets no threads: no
+     * way to start one, and no count to open one by. A portal that limits
+     * nobody is unchanged (Contracts\RestrictsChat).
+     */
+    $chatDirectory = app(\Revun\Chat\Contracts\ParticipantDirectory::class);
+    $chatPerson = $chatDirectory->current();
+    $threads = ! ($chatPerson !== null
+        && $chatDirectory instanceof \Revun\Chat\Contracts\RestrictsChat
+        && $chatDirectory->onlyDirectMessages($chatPerson));
+@endphp
 
 {{--
     One conversation, wherever it is read: the page's room and the dock's
@@ -87,7 +99,7 @@
                             <div class="rc-msg__line"><span class="rc-msg__text" x-html="linked(message.text)"></span><template x-if="message.mine && message.receipt"><span class="rc-tick" :class="message.receipt === 'read' && 'rc-tick--read'" :title="{ sent: '{{ __('Sent') }}', delivered: '{{ __('Delivered') }}', read: '{{ __('Read') }}' }[message.receipt]"><template x-if="message.receipt === 'sent'"><x-chat::icon name="tick" /></template><template x-if="message.receipt !== 'sent'"><x-chat::icon name="tick-double" /></template></span></template></div>
                         </template>
 
-                        <template x-if="message.replies > 0">
+                        <template x-if="{{ $threads ? 'true' : 'false' }} && message.replies > 0">
                             <button
                                 type="button"
                                 class="rc-msg__thread"
@@ -130,6 +142,7 @@
 
                     <template x-if="! message.deleted">
                         <div class="rc-msg__tools">
+                            @if ($threads)
                             <button
                                 type="button"
                                 class="rc-icon-button rc-icon-button--sm"
@@ -138,6 +151,7 @@
                             >
                                 <x-chat::icon name="reply" />
                             </button>
+                            @endif
 
                             <template x-if="message.mine">
                                 <button type="button" class="rc-icon-button rc-icon-button--sm" @click="remove(message)" title="{{ __('Delete') }}">

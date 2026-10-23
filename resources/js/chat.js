@@ -19,6 +19,7 @@ const ENDPOINTS = {
     directory: '/chat/directory',
     abilities: '/chat/abilities',
     channels: '/chat/channels',
+    direct: '/chat/direct',
     members: '/chat/channels/members',
 };
 
@@ -1011,7 +1012,14 @@ export function registerChat(Alpine) {
          * already exists rather than making a second.
          */
         async messagePerson(userId) {
-            const channel = client.channel('messaging', { members: [this.me, userId] });
+            /*
+             * Opened by the server, not here. A browser that can make a channel
+             * can make one with anybody whose id it can work out — and an id is
+             * a hash of an email address, not a secret. The server knows who
+             * this person may write to; this does not.
+             */
+            const made = await ask(ENDPOINTS.direct, { method: 'POST', body: JSON.stringify({ user: userId }) });
+            const channel = client.channel(made.type, made.id);
             await channel.watch({ messages: { limit: PAGE } });
 
             this.hold(channel);

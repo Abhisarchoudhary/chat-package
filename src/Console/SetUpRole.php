@@ -67,22 +67,32 @@ class SetUpRole extends Command
         $drop = $this->option('drop') ?: self::DROP;
 
         $app = $stream->get('app');
+        $channelType = $stream->get('channeltypes/' . $type);
 
-        if ($app === null) {
+        if ($app === null || $channelType === null) {
             $this->error('Stream did not answer. Nothing has been changed.');
 
             return self::FAILURE;
         }
 
         /*
-         * What the ordinary user may do today, in both places a grant lives:
-         * the application itself, and the channel type.
+         * What the ordinary user may do today, in both places a grant lives —
+         * and they are not the same place. The application's are on the app
+         * itself; a channel type's are only on the channel type, which has to
+         * be asked for by name. Read from the app alone they come back empty,
+         * which reads as "the user may do nothing in messaging" and would have
+         * built a role that cannot say a word.
          */
         $appGrants = (array) data_get($app, 'app.grants.' . $from, []);
-        $typeGrants = (array) data_get($app, 'app.channel_configs.' . $type . '.grants.' . $from, []);
+        $typeGrants = (array) data_get($channelType, 'grants.' . $from, []);
 
-        if ($appGrants === [] && $typeGrants === []) {
-            $this->error('The "' . $from . '" role has no grants to copy. Name another with --from.');
+        /*
+         * Either one empty is wrong, not just both: a role copied from a half
+         * answer is a role that is broken in a way only somebody using it finds.
+         */
+        if ($appGrants === [] || $typeGrants === []) {
+            $this->error('The "' . $from . '" role has no grants on '
+                . ($appGrants === [] ? 'the application' : $type) . ', so there is nothing to copy.');
 
             return self::FAILURE;
         }

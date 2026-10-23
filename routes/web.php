@@ -23,6 +23,10 @@ Route::middleware(config('chat.routes.middleware', ['web', 'auth']))
          * permissions refuse them to a user token, and they come here so the
          * portal's own permissions decide.
          */
+        /* One conversation with one person. Made here rather than in the
+           browser, because a browser that can make one can make it with
+           anybody whose id it can work out — and an id is a hash of an email. */
+        Route::post('direct', [ChatController::class, 'direct'])->middleware('throttle:60,1')->name('direct');
         Route::post('channels', [ChatController::class, 'createChannel'])->name('channels.create');
         Route::post('channels/members', [ChatController::class, 'members'])->name('channels.members');
 

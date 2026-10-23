@@ -5,6 +5,7 @@ namespace Revun\Chat\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Revun\Chat\Contracts\ParticipantDirectory;
+use Revun\Chat\Contracts\RestrictsChat;
 use Revun\Chat\Identity;
 use Revun\Chat\Stream;
 use Revun\Chat\StreamUsers;
@@ -45,6 +46,21 @@ final class ChatController
              * which is a different and much more convincing sort of wrong.
              */
             return response()->json(['message' => 'The directory is not answering just now.'], 503);
+        }
+
+        /*
+         * Narrowed where the portal narrows it (Contracts\RestrictsChat).
+         * Stream answers with everybody it holds, which is right for colleagues
+         * and wrong for somebody from outside the company — and the portal is
+         * the only thing that knows which this is.
+         */
+        $allowed = $directory instanceof RestrictsChat
+            ? $directory->visibleTo($directory->current())
+            : null;
+
+        if ($allowed !== null) {
+            $allowed = array_flip($allowed);
+            $people = array_values(array_filter($people, fn ($person) => isset($allowed[$person['id'] ?? ''])));
         }
 
         $here = (string) config('chat.organisation');
@@ -88,6 +104,15 @@ final class ChatController
             return response()->json(['message' => 'You cannot create a channel.'], 403);
         }
 
+        /*
+         * Said here as well as left off the screen. Somebody who only gets
+         * direct messages has no button for this, and a route that answered it
+         * anyway would be a group made by whoever thought to post to it.
+         */
+        if ($directory instanceof RestrictsChat && $directory->onlyDirectMessages($person)) {
+            return response()->json(['message' => 'You can only message people directly.'], 403);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'type' => ['required', 'in:team,messaging'],
@@ -127,6 +152,83 @@ final class ChatController
             'cid' => $answer['channel']['cid'] ?? "{$data['type']}:{$id}",
             'type' => $data['type'],
             'id' => $id,
+        ]);
+    }
+
+    /**
+     * A conversation with one other person, opened by the server.
+     *
+     * **The browser used to make this itself**, and for a colleague it still
+     * could: `create-channel` is an ordinary user's permission and a distinct
+     * channel is the same conversation however many times it is started. But a
+     * browser that can start a conversation can start one with anybody whose id
+     * it can work out — and the id is a hash of an email address, which is not
+     * a secret. For somebody outside the company that is the whole rule gone.
+     *
+     * So it is made here, where the portal says who may be written to. A
+     * portal that narrows nothing gets exactly what it had, one hop later.
+     */
+    public function direct(Request $request, ParticipantDirectory $directory, Stream $stream): JsonResponse
+    {
+        $person = $directory->current();
+
+        if ($person === null) {
+            return response()->json(['message' => 'This account cannot use chat.'], 403);
+        }
+
+        $data = $request->validate([
+            'user' => ['required', 'string', 'max:64'],
+        ]);
+
+        $them = $data['user'];
+
+        if (! Identity::looksLikeOurs($them)) {
+            return response()->json(['message' => 'That is not somebody here.'], 422);
+        }
+
+        $me = Identity::forEmail($person->chatEmail());
+
+        if ($them === $me) {
+            return response()->json(['message' => 'That is you.'], 422);
+        }
+
+        /*
+         * The same answer the directory was drawn from, asked again — a list
+         * that was right when the page loaded is not a permission, and this is
+         * the request that actually opens the conversation.
+         */
+        if ($directory instanceof RestrictsChat) {
+            $allowed = $directory->visibleTo($person);
+
+            if ($allowed !== null && ! in_array($them, $allowed, true)) {
+                return response()->json(['message' => 'You cannot message this person.'], 403);
+            }
+        }
+
+        /*
+         * No id of our own: Stream makes a **distinct** channel from the pair
+         * of members, which is what makes writing to the same person twice land
+         * in the same conversation instead of a second one beside it.
+         */
+        $answer = $stream->post('channels/messaging/query', [
+            'data' => [
+                'members' => [$me, $them],
+                'created_by_id' => $me,
+                'portal' => (string) config('chat.organisation'),
+            ],
+            'state' => true,
+        ]);
+
+        $channel = $answer['channel'] ?? null;
+
+        if ($channel === null || ! isset($channel['id'])) {
+            return response()->json(['message' => 'The conversation could not be opened.'], 502);
+        }
+
+        return response()->json([
+            'cid' => $channel['cid'] ?? 'messaging:'.$channel['id'],
+            'type' => $channel['type'] ?? 'messaging',
+            'id' => $channel['id'],
         ]);
     }
 

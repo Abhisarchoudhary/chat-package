@@ -51,7 +51,7 @@ final class ChatServiceProvider extends ServiceProvider
         }
 
         if ($this->app->runningInConsole()) {
-            $this->commands([Console\SyncParticipants::class, Console\SweepArchive::class]);
+            $this->commands([Console\SyncParticipants::class, Console\SweepArchive::class, Console\SetUpRole::class]);
         }
 
         $this->publishes([

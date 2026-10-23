@@ -71,6 +71,18 @@ final class Stream
     }
 
     /**
+     * The handful of settings Stream will only take as a whole object — a
+     * channel type's grants among them.
+     *
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>|null
+     */
+    public function put(string $path, array $body = []): ?array
+    {
+        return $this->send('put', $path, $body);
+    }
+
+    /**
      * @param  array<string, mixed>  $query
      * @return array<string, mixed>|null
      */

@@ -78,6 +78,7 @@ final class ChatController
                 'image' => $person['image'] ?? null,
                 'email' => $person['email'] ?? null,
                 'department' => ($person['departments'][$organisation] ?? null),
+                'title' => ($person['titles'][$organisation] ?? null),
                 'online' => (bool) ($person['online'] ?? false),
                 'organisation' => $organisation,
             ];

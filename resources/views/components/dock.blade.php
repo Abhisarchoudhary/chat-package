@@ -424,9 +424,12 @@
 
                                                     <span class="rc-row__body">
                                                         <span class="rc-row__title" x-text="person.name"></span>
-                                                        {{-- Their team or whether they are here. Never their
-                                                             address: a colleague list is not a mailing list. --}}
-                                                        <span class="rc-row__preview" x-text="person.department || (person.online ? '{{ __('Online') }}' : '{{ __('Offline') }}')"></span>
+                                                        {{-- Their team, what they do, or whether they are here. The
+                                                             department says which part of the business somebody is in
+                                                             and the title says what to go to them about — a directory
+                                                             is opened for the second one. Never their address: a
+                                                             colleague list is not a mailing list. --}}
+                                                        <span class="rc-row__preview" x-text="[person.department, person.title].filter(Boolean).join(' - ') || (person.online ? '{{ __('Online') }}' : '{{ __('Offline') }}')"></span>
                                                     </span>
                                                 </button>
                                             </template>

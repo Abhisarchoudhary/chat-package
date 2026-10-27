@@ -38,6 +38,19 @@ interface ChatParticipant
     /** Which business this person works for here: rypm, otr, crp. */
     public function chatOrganisation(): string;
 
+    /**
+     * What they do — "Account Manager", "Leasing Consultant".
+     *
+     * Beside the department rather than instead of it: *Leasing* says which
+     * part of the business somebody is in and *Account Manager* says what to
+     * go to them about, and a directory is read to answer the second one.
+     *
+     * Null where a portal does not keep it, which is what `TalksInChat`
+     * answers — their department alone is then what shows, exactly as it did
+     * before anybody was asked this.
+     */
+    public function chatTitle(): ?string;
+
     /** Their team, for grouping the directory. Null where the portal has none. */
     public function chatDepartment(): ?string;
 

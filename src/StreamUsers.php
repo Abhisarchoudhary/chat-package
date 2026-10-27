@@ -53,6 +53,9 @@ final class StreamUsers
             'email' => mb_strtolower(trim($person->chatEmail())),
             'organisations.'.$organisation => true,
             'departments.'.$organisation => $person->chatDepartment(),
+            /* Per organisation like the department, because somebody who works
+               in two of the portals is one person with two jobs. */
+            'titles.'.$organisation => $person->chatTitle(),
         ];
 
         $mark = 'chat.synced.'.$id;

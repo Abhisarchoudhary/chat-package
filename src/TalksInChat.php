@@ -48,6 +48,22 @@ trait TalksInChat
     }
 
     /**
+     * What they do, where the portal happens to keep it under that name.
+     *
+     * **Null is a real answer**, not a gap to be filled by guessing: a portal
+     * that does not record job titles shows the department alone, exactly as
+     * every portal did before this was asked for. Overriding this is one
+     * method in a model, and `job_title` is read here only because three of
+     * the four already call the column that.
+     */
+    public function chatTitle(): ?string
+    {
+        $title = $this->job_title ?? null;
+
+        return filled($title) ? (string) $title : null;
+    }
+
+    /**
      * Everybody is an ordinary Stream user.
      *
      * Not even a super admin is given Stream's `admin` role: that would be a

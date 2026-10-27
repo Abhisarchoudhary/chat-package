@@ -41,7 +41,7 @@ return [
      */
     'organisations' => [
         'rypm' => 'Royal York Property Management',
-        'otr' => 'MSR',
+        'otr' => 'MoveSmart Rentals',
         'crp' => 'Recruitment',
         'bpm' => 'Bridgepoint Maintenance',
     ],

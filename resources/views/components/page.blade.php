@@ -272,7 +272,7 @@
 
                                     <span class="rc-person__name">
                                         <strong x-text="person.name"></strong>
-                                        <span x-text="[person.department, person.email].filter(Boolean).join(' · ')"></span>
+                                        <span x-text="[[person.department, person.title].filter(Boolean).join(' - '), person.email].filter(Boolean).join(' · ')"></span>
                                     </span>
 
                                     <template x-if="already(person.id)">

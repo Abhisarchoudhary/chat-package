@@ -1131,6 +1131,9 @@ export function registerChat(Alpine) {
         text: '',
         sending: false,
         uploading: false,
+        /** Whether something is being dragged over the conversation. */
+        over: false,
+        depth: 0,
         error: null,
         typing: [],
 
@@ -1271,32 +1274,129 @@ export function registerChat(Alpine) {
             this.$store.chat.typing(this.cid);
         },
 
+        /*
+         * Files arrive three ways -- the paperclip, a drop onto the
+         * conversation, and a paste -- and all three end up in `hold`. The
+         * picker is the only one the browser filters for us, so what its
+         * `accept` does for free has to be done by hand for the other two.
+         */
         async attach(event) {
-            const file = event.target.files?.[0];
+            await this.hold(event.target.files);
 
-            if (!file) return;
+            /* Cleared, or choosing the same file twice in a row is silence:
+               the input's value has not changed, so neither has `change`. */
+            event.target.value = '';
+        },
 
+        /** Whatever is on the clipboard, which here is usually a screenshot. */
+        pasted(event) {
+            const files = [...(event.clipboardData?.items ?? [])]
+                .filter((item) => item.kind === 'file')
+                .map((item) => item.getAsFile())
+                .filter(Boolean);
+
+            /* Pasted words are the browser's business, not ours. */
+            if (files.length === 0) return;
+
+            event.preventDefault();
+            this.hold(files);
+        },
+
+        dropped(event) {
+            this.depth = 0;
+            this.over = false;
+            this.hold(event.dataTransfer?.files);
+        },
+
+        /*
+         * Dragging across the conversation crosses every message in it, and
+         * each crossing is a `dragleave` -- a sheet drawn from those events
+         * alone blinks the whole way down. Counting what has been entered and
+         * not yet left is the usual answer to it.
+         */
+        entered(event) {
+            if (! [...(event.dataTransfer?.types ?? [])].includes('Files')) return;
+
+            this.depth++;
+            this.over = true;
+        },
+
+        left() {
+            this.depth = Math.max(0, this.depth - 1);
+
+            if (this.depth === 0) this.over = false;
+        },
+
+        /**
+         * Send them, one at a time and in the order they were given.
+         *
+         * One refused file does not hold up the rest: somebody who drags four
+         * screenshots in and has the third turn out to be a .heic wanted the
+         * other three sent, not the lot returned.
+         */
+        async hold(list) {
+            const files = [...(list ?? [])];
+
+            if (files.length === 0 || this.uploading) return;
+
+            const allowed = (this.$el.dataset.types ?? '').split(',').filter(Boolean);
             const limit = Number(this.$el.dataset.maxMb ?? 25);
-
-            if (file.size > limit * 1024 * 1024) {
-                this.error = `That file is larger than ${limit} MB.`;
-                event.target.value = '';
-
-                return;
-            }
+            const refused = [];
 
             this.uploading = true;
             this.error = null;
 
-            try {
-                await this.$store.chat.upload(this.cid, file);
-                this.scroll();
-            } catch (error) {
-                this.error = 'That file did not upload.';
-            } finally {
-                this.uploading = false;
-                event.target.value = '';
+            for (const given of files) {
+                const file = this.named(given);
+
+                if (allowed.length > 0 && ! allowed.includes(file.type)) {
+                    refused.push(`${file.name} is not a kind of file chat takes.`);
+
+                    continue;
+                }
+
+                if (file.size > limit * 1024 * 1024) {
+                    refused.push(`${file.name} is larger than ${limit} MB.`);
+
+                    continue;
+                }
+
+                try {
+                    await this.$store.chat.upload(this.cid, file);
+                    this.scroll();
+                } catch {
+                    refused.push(`${file.name} did not upload.`);
+                }
             }
+
+            this.uploading = false;
+
+            /* The first refusal in full and a count for the rest: four lines
+               of error over a composer leave nowhere to type. */
+            this.error = refused.length === 0
+                ? null
+                : refused[0] + (refused.length === 1 ? '' : refused.length === 2
+                    ? ' One other did not go either.'
+                    : ` ${refused.length - 1} others did not go either.`);
+        },
+
+        /*
+         * A screenshot off the clipboard is called `image.png` -- by
+         * everybody, every time -- and a conversation of those is a
+         * conversation of files nobody can tell apart. The minute it was
+         * pasted is the one thing that does tell them apart.
+         */
+        named(file) {
+            if (file.name && file.name !== 'image.png') return file;
+
+            /* A colon is not a filename on two of the three platforms this
+               will be saved on. */
+            const at = new Date()
+                .toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                .replace(/:/g, '.');
+            const kind = (file.type.split('/')[1] ?? 'png').replace('jpeg', 'jpg');
+
+            return new File([file], `Screenshot ${at}.${kind}`, { type: file.type });
         },
 
         remove(message) {

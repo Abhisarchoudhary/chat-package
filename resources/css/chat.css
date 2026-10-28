@@ -710,6 +710,45 @@
 .rc-send:disabled { background: #d7deea; cursor: default; }
 .rc-error { padding: 0 18px 8px; color: var(--rc-danger); font-size: var(--rc-text-sm); }
 
+/*
+ * A file held over the conversation.
+ *
+ * Dropping and pasting are the two ways of sending a file that nothing on
+ * screen advertises, so this sheet is the advertisement: it appears the
+ * moment something is dragged over the conversation and says what letting go
+ * of it will do.
+ *
+ * It does not take the pointer. The events it would swallow are the ones the
+ * conversation underneath is counting to know when the drag has left, and a
+ * sheet that eats its own drop is worse than no sheet at all.
+ */
+.rc-drop {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffffd6;
+    pointer-events: none;
+}
+
+.rc-drop__sheet {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 18px;
+    border: 2px dashed var(--rc-primary);
+    border-radius: var(--rc-radius);
+    background: #fff;
+    /* Not `--rc-shadow`: that is the lift under a panel, and at 44px of blur
+       under a pill this size it reads as a smudge rather than a shadow. */
+    box-shadow: 0 6px 18px rgb(17 27 46 / 10%);
+    color: var(--rc-primary);
+    font-size: var(--rc-text-sm);
+    font-weight: 600;
+}
+
 /* ================================================================ people */
 
 .rc-avatar {
@@ -1586,7 +1625,8 @@ body.rc-locked { overflow: hidden; }
 
 .rc-room { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .rc-room__hash { width: 36px; display: grid; place-items: center; color: var(--rc-muted); flex: none; }
-.rc-talk { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+/* `relative` for the drop sheet, which covers the conversation and nothing else. */
+.rc-talk { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
 .rc-day span { font-size: var(--rc-text-sm); }
 .rc-empty svg { margin: 0 auto 10px; color: #b7c2d6; }
 

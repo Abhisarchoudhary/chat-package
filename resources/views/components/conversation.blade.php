@@ -23,8 +23,28 @@
 <div
     x-data="chatConversation(() => ({{ $for }}))"
     data-max-mb="{{ config('chat.files.max_megabytes', 25) }}"
+    {{-- The same list the picker's `accept` is built from. A file dropped or
+         pasted is never offered that list, so the composer has to hold it. --}}
+    data-types="{{ implode(',', (array) config('chat.files.types', [])) }}"
     class="rc-talk"
+    @paste="pasted($event)"
+    @dragenter.prevent="entered($event)"
+    @dragover.prevent
+    @dragleave="left()"
+    @drop.prevent="dropped($event)"
 >
+    {{-- A dropped file lands anywhere on the conversation rather than on a
+         strip beside the paperclip: somebody dragging a screenshot in is
+         aiming at the conversation, which is the part of this they can see. --}}
+    <template x-if="over">
+        <div class="rc-drop" aria-hidden="true">
+            <span class="rc-drop__sheet">
+                <x-chat::icon name="paperclip" />
+                {{ __('Drop to send') }}
+            </span>
+        </div>
+    </template>
+
     {{-- The scroll handler is declared here rather than attached in `init()`.
          It was attached there, against `$refs.list`, and `$refs` is filled
          while Alpine walks the children -- which happens after `x-data`'s own
@@ -195,10 +215,11 @@
             ></textarea>
 
             <div class="rc-composer__bar">
-                <label class="rc-icon-button" title="{{ __('Attach a file') }}">
+                <label class="rc-icon-button" title="{{ __('Attach a file — or drop one in, or paste a screenshot') }}">
                     <x-chat::icon name="paperclip" />
                     <input
                         type="file"
+                        multiple
                         style="display: none"
                         accept="{{ implode(',', (array) config('chat.files.types', [])) }}"
                         @change="attach($event)"

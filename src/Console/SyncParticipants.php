@@ -47,9 +47,25 @@ final class SyncParticipants extends Command
 
         $this->components->info(sprintf(
             '%d people synced as %s.',
-            $synced,
+            $synced - $users->refused(),
             (string) config('chat.organisation'),
         ));
+
+        /*
+         * Said out loud, because the old wording was a lie that cost real
+         * time: Stream refusing every write is a line in the log file, and
+         * this command went on reporting the number of people it had *looked
+         * at* as the number it had synced. A directory can stop updating
+         * altogether while this says it worked.
+         */
+        if ($users->refused() > 0) {
+            $this->components->error(sprintf(
+                '%d of them were refused by Stream and are unchanged — the reason is in the log (Stream refused a request).',
+                $users->refused(),
+            ));
+
+            return self::FAILURE;
+        }
 
         return self::SUCCESS;
     }

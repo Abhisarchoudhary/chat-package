@@ -24,7 +24,23 @@ final class StreamUsers
     /** How many users Stream will answer in one request, whatever it is asked for. */
     private const PAGE = 100;
 
+    /**
+     * Writes Stream would not take, for a caller that reports rather than logs.
+     *
+     * `chat:sync` used to print "16 people synced" for sixteen refusals — the
+     * failure was a line in the log file and the command said it had worked,
+     * which is how one rejected field went unnoticed while a whole directory
+     * stopped updating.
+     */
+    private int $refused = 0;
+
     public function __construct(private readonly Stream $stream) {}
+
+    /** How many of the writes asked for since this object was made were refused. */
+    public function refused(): int
+    {
+        return $this->refused;
+    }
 
     /**
      * Write this person into Stream, and record that this portal has them.
@@ -72,12 +88,42 @@ final class StreamUsers
          * they are there and can go straight to the update.
          */
         if ($last === null && ! $this->exists($id)) {
-            $this->stream->post('users', ['users' => [$id => ['id' => $id, 'role' => $person->chatRole()] + $this->unflatten($set)]]);
+            $landed = $this->stream->post('users', ['users' => [$id => ['id' => $id, 'role' => $person->chatRole()] + $this->unflatten($set)]]) !== null;
         } else {
-            $this->stream->patch('users', ['users' => [['id' => $id, 'set' => $set]]]);
+            $landed = $this->stream->patch('users', ['users' => [['id' => $id, 'set' => $set]]]) !== null;
+
+            /*
+             * **A dotted key needs its parent to exist already.** Stream
+             * answers `no such field: titles` and refuses the *whole* patch,
+             * so the name and the photograph travelling in the same request
+             * are lost with it — and everybody written before a field was
+             * invented is in exactly that state. One new field therefore
+             * stopped a directory updating at all, silently, while the sync
+             * reported success.
+             *
+             * So the refusal is read as what it is and the missing parents are
+             * sent whole. That cannot undo another portal's work, which is the
+             * rule this method exists for: a field nobody holds has nothing in
+             * it to clobber.
+             */
+            if (! $landed && ($held = $this->record($id)) !== null) {
+                $landed = $this->stream->patch('users', [
+                    'users' => [['id' => $id, 'set' => self::rooted($set, $held)]],
+                ]) !== null;
+            }
         }
 
-        Cache::forever($mark, $written);
+        /*
+         * Remembered only when it landed. Written regardless, a refused write
+         * told every later sync that this person was already up to date — so
+         * the one thing that would have fixed it was the one thing that then
+         * never ran.
+         */
+        if ($landed) {
+            Cache::forever($mark, $written);
+        } else {
+            $this->refused++;
+        }
 
         return $id;
     }
@@ -99,12 +145,60 @@ final class StreamUsers
         $this->stream->post('users/'.Identity::forEmail($person->chatEmail()).'/reactivate');
     }
 
+    /**
+     * The same keys, with any whose parent object Stream has not got yet
+     * written as that parent instead.
+     *
+     * `titles.otr => 'Leasing Manager'` becomes `titles => ['otr' => '…']` for
+     * somebody who has no `titles` at all, and is left exactly as it is for
+     * somebody who has — because the dotted form is what keeps three portals
+     * out of each other's way, and is only impossible on the very first write
+     * of a field.
+     *
+     * Static and public because it is the rule rather than a step, and is
+     * pinned by a test that needs no Stream and no application.
+     *
+     * @param  array<string, mixed>  $set
+     * @param  array<string, mixed>  $held  the person as Stream holds them
+     * @return array<string, mixed>
+     */
+    public static function rooted(array $set, array $held): array
+    {
+        $rooted = [];
+
+        foreach ($set as $key => $value) {
+            [$parent, $child] = array_pad(explode('.', $key, 2), 2, null);
+
+            // An existing parent must stay dotted: writing it whole would
+            // replace what the other portals have put in it.
+            if ($child === null || is_array($held[$parent] ?? null)) {
+                $rooted[$key] = $value;
+
+                continue;
+            }
+
+            $rooted[$parent] = (is_array($rooted[$parent] ?? null) ? $rooted[$parent] : []) + [$child => $value];
+        }
+
+        return $rooted;
+    }
+
     /** Whether Stream already holds this person. */
     public function exists(string $id): bool
     {
+        return $this->record($id) !== null;
+    }
+
+    /**
+     * This person as Stream holds them, or null where it does not hold them.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function record(string $id): ?array
+    {
         $answer = $this->stream->query('users', ['filter_conditions' => ['id' => $id], 'limit' => 1]);
 
-        return ($answer['users'] ?? []) !== [];
+        return $answer['users'][0] ?? null;
     }
 
     /**

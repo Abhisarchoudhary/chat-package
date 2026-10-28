@@ -106,6 +106,11 @@
                     <strong class="rc-box__title" x-text="$store.chat.find(cid)?.title"></strong>
                 </button>
 
+                {{-- The slack between the name and the buttons. It used to
+                     belong to the name, which made a third of the header a
+                     control that looks like nothing. --}}
+                <span class="rc-box__gap"></span>
+
                 <template x-if="$store.chat.abilities['call']">
                     <button
                         type="button"
@@ -148,6 +153,13 @@
 
                         <template x-if="! whoLoading && ! whoOurs && ! whoFailed">
                             <p class="rc-who__note">{{ __('They work in another portal, so this one knows their name and what they do and nothing further.') }}</p>
+                        </template>
+
+                        {{-- A card that answered "nothing" drew an empty box,
+                             which reads as something broken rather than as
+                             somebody nobody has written anything about. --}}
+                        <template x-if="! whoLoading && whoOurs && ! who && ! whoFailed">
+                            <p class="rc-who__note">{{ __('There is nothing on record about them yet.') }}</p>
                         </template>
 
                         <template x-if="whoFailed">
@@ -482,6 +494,10 @@
 
                                             <template x-if="! card.loading && ! card.ours && ! cardFailed">
                                                 <p class="rc-who__note">{{ __('They work in another portal, so this one knows their name and what they do and nothing further.') }}</p>
+                                            </template>
+
+                                            <template x-if="! card.loading && card.ours && ! card.detail && ! cardFailed">
+                                                <p class="rc-who__note">{{ __('There is nothing on record about them yet.') }}</p>
                                             </template>
 
                                             <template x-if="cardFailed">

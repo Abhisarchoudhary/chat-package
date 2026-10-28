@@ -1755,22 +1755,52 @@ body.rc-locked { overflow: hidden; }
 
 .rc-who--bubble {
     position: absolute;
-    top: calc(100% + 6px);
-    left: 6px;
-    right: 6px;
+    top: calc(100% + 9px);
+    /* Under the name, not across the window: it belongs to what was pressed,
+       and a panel the full width of the header reads as the header having
+       grown rather than as something hanging off a name. */
+    left: 10px;
+    width: 254px;
+    max-width: calc(100% - 20px);
     z-index: 6;
-    padding: 12px;
+    padding: 12px 14px 14px;
     color: var(--rc-text);
     background: var(--rc-surface);
-    border-radius: var(--rc-radius);
-    box-shadow: var(--rc-shadow);
+    border: 1px solid var(--rc-line);
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(18, 28, 51, .18);
     cursor: default;
 }
+
+/* The tail, which is what makes it a bubble and not a box: it says which name
+   these words are about, on a header that may hold several conversations. */
+.rc-who--bubble::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 16px;
+    width: 10px;
+    height: 10px;
+    background: var(--rc-surface);
+    border-left: 1px solid var(--rc-line);
+    border-top: 1px solid var(--rc-line);
+    border-radius: 2px 0 0 0;
+    transform: rotate(45deg);
+}
+
+/* The first thing in the bubble sits at the top of it. In the directory the
+   same pill follows a name and a face, which is where that margin is from. */
+.rc-who--bubble > .rc-who__state,
+.rc-who--bubble > .rc-who__fact:first-child,
+.rc-who--bubble > .rc-who__about:first-child,
+.rc-who--bubble > .rc-who__note:first-child { margin-top: 0; }
 
 /* The name is a control now, and looks like the header it sits in rather than
    like a button dropped into it. */
 .rc-box__who {
-    flex: 1;
+    /* Only as wide as the face and the name, so the empty bar beside them is
+       not a control that looks like nothing. */
+    flex: 0 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -1784,4 +1814,12 @@ body.rc-locked { overflow: hidden; }
     cursor: pointer;
 }
 
-.rc-box__who--open:hover .rc-box__title { text-decoration: underline; }
+/* No underline: a name in a header is not a link, and underlining it on
+   hover made the one bold thing in the window flicker as the cursor crossed
+   it on the way to the close button. It lightens instead, which is what the
+   buttons beside it already do. */
+.rc-box__who--open:hover { opacity: .85; }
+
+/* What is left of the header after the name: the buttons sit at the far end
+   of it, and pressing it does nothing. */
+.rc-box__gap { flex: 1; }

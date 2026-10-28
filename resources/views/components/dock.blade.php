@@ -59,6 +59,7 @@
     $chatEndpoints = collect([
         'token' => 'chat.token',
         'directory' => 'chat.directory',
+        'person' => 'chat.person',
         'abilities' => 'chat.abilities',
         'channels' => 'chat.channels.create',
         'direct' => 'chat.direct',
@@ -414,38 +415,112 @@
                             {{-- People: the shared directory, this portal first. --}}
                             <template x-if="tab === 'people'">
                                 <div>
-                                    <template x-for="group in groups" :key="group.key">
-                                        <div class="rc-mini__group">
-                                            <p class="rc-mini__groupName" x-text="group.label"></p>
+                                    {{-- One colleague, where the list was.
 
-                                            <template x-for="person in group.people" :key="person.id">
-                                                <button type="button" class="rc-row rc-row--person" @click="message(person.id)">
-                                                    <x-chat::avatar name="person.name" image="person.image" online="person.online" size="sm" />
+                                         A name used to open a message box, which answers the
+                                         second question first: a directory is read to find out
+                                         what somebody does and whether they are even at work
+                                         today, and an empty box makes you guess that in front of
+                                         the person watching you type. Writing to them is a button
+                                         here, once you know who they are. --}}
+                                    <template x-if="card">
+                                        <div class="rc-who">
+                                            <button type="button" class="rc-who__back" @click="closeCard()">
+                                                {{ __('All people') }}
+                                            </button>
 
-                                                    <span class="rc-row__body">
-                                                        <span class="rc-row__title" x-text="person.name"></span>
-                                                        {{-- Their team, what they do, or whether they are here. The
-                                                             department says which part of the business somebody is in
-                                                             and the title says what to go to them about — a directory
-                                                             is opened for the second one. Never their address: a
-                                                             colleague list is not a mailing list. --}}
-                                                        <span class="rc-row__preview" x-text="[person.department, person.title].filter(Boolean).join(' - ') || (person.online ? '{{ __('Online') }}' : '{{ __('Offline') }}')"></span>
-                                                    </span>
-                                                </button>
+                                            <div class="rc-who__head">
+                                                <x-chat::avatar name="card.person.name" image="card.person.image" online="card.person.online" />
+
+                                                <span class="rc-who__who">
+                                                    <span class="rc-who__name" x-text="card.person.name"></span>
+                                                    <span class="rc-who__role" x-text="[card.person.department, card.person.title].filter(Boolean).join(' - ')"></span>
+                                                </span>
+                                            </div>
+
+                                            {{-- Whether they are at work, said as a sentence by the
+                                                 portal rather than assembled here: only it knows
+                                                 whether a quiet hour is a break, a day off or leave. --}}
+                                            <template x-if="card.detail?.status">
+                                                <span class="rc-who__state" :class="card.detail.status.in && 'rc-who__state--in'" x-text="card.detail.status.label"></span>
                                             </template>
+
+                                            <template x-if="card.detail?.shift">
+                                                <p class="rc-who__fact">
+                                                    <span class="rc-who__factName">{{ __('Today') }}</span>
+                                                    <span x-text="card.detail.shift"></span>
+                                                </p>
+                                            </template>
+
+                                            <template x-if="card.detail?.leave">
+                                                <p class="rc-who__fact">
+                                                    <span class="rc-who__factName">{{ __('Leave') }}</span>
+                                                    <span x-text="card.detail.leave"></span>
+                                                </p>
+                                            </template>
+
+                                            <template x-if="card.detail?.bio">
+                                                <p class="rc-who__bio" x-text="card.detail.bio"></p>
+                                            </template>
+
+                                            {{-- Said rather than left blank. A card that is empty
+                                                 for a moment reads as a card that failed, and a
+                                                 colleague in another portal genuinely has nothing
+                                                 more here — this one does not hold their hours. --}}
+                                            <template x-if="card.loading">
+                                                <p class="rc-who__note">{{ __('Looking them up…') }}</p>
+                                            </template>
+
+                                            <template x-if="! card.loading && ! card.ours && ! cardFailed">
+                                                <p class="rc-who__note">{{ __('They work in another portal, so this one knows their name and what they do and nothing further.') }}</p>
+                                            </template>
+
+                                            <template x-if="cardFailed">
+                                                <p class="rc-who__note">{{ __('Their details could not be loaded.') }}</p>
+                                            </template>
+
+                                            <button type="button" class="rc-who__go" @click="messageFromCard()">
+                                                {{ __('Message') }}
+                                            </button>
                                         </div>
                                     </template>
 
-                                    <template x-if="people === null">
-                                        <p class="rc-mini__note">{{ __('Loading the directory…') }}</p>
-                                    </template>
+                                    <template x-if="! card">
+                                        <div>
+                                        <template x-for="group in groups" :key="group.key">
+                                            <div class="rc-mini__group">
+                                                <p class="rc-mini__groupName" x-text="group.label"></p>
 
-                                    <template x-if="peopleFailed">
-                                        <p class="rc-mini__note">{{ __('The directory could not be loaded.') }}</p>
-                                    </template>
+                                                <template x-for="person in group.people" :key="person.id">
+                                                    <button type="button" class="rc-row rc-row--person" @click="openCard(person)">
+                                                        <x-chat::avatar name="person.name" image="person.image" online="person.online" size="sm" />
 
-                                    <template x-if="people !== null && ! peopleFailed && groups.length === 0">
-                                        <p class="rc-mini__note">{{ __('Nobody matches that.') }}</p>
+                                                        <span class="rc-row__body">
+                                                            <span class="rc-row__title" x-text="person.name"></span>
+                                                            {{-- Their team, what they do, or whether they are here. The
+                                                                 department says which part of the business somebody is in
+                                                                 and the title says what to go to them about — a directory
+                                                                 is opened for the second one. Never their address: a
+                                                                 colleague list is not a mailing list. --}}
+                                                            <span class="rc-row__preview" x-text="[person.department, person.title].filter(Boolean).join(' - ') || (person.online ? '{{ __('Online') }}' : '{{ __('Offline') }}')"></span>
+                                                        </span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="people === null">
+                                            <p class="rc-mini__note">{{ __('Loading the directory…') }}</p>
+                                        </template>
+
+                                        <template x-if="peopleFailed">
+                                            <p class="rc-mini__note">{{ __('The directory could not be loaded.') }}</p>
+                                        </template>
+
+                                        <template x-if="people !== null && ! peopleFailed && groups.length === 0">
+                                            <p class="rc-mini__note">{{ __('Nobody matches that.') }}</p>
+                                        </template>
+                                        </div>
                                     </template>
                                 </div>
                             </template>

@@ -18,6 +18,11 @@ Route::middleware(config('chat.routes.middleware', ['web', 'auth']))
         Route::get('directory', [ChatController::class, 'directory'])->name('directory');
         Route::get('abilities', [ChatController::class, 'abilities'])->name('abilities');
 
+        /* One person, for the card their name opens: what they do, whether
+           they are at work today, and the hours they are working. Only this
+           portal can answer it about its own people. */
+        Route::get('person', [ChatController::class, 'person'])->middleware('throttle:120,1')->name('person');
+
         /*
          * The few things a browser is not allowed to do for itself: Stream's
          * permissions refuse them to a user token, and they come here so the

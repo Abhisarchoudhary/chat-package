@@ -4,6 +4,7 @@ namespace Revun\Chat\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Revun\Chat\Contracts\DescribesPeople;
 use Revun\Chat\Contracts\ParticipantDirectory;
 use Revun\Chat\Contracts\RestrictsChat;
 use Revun\Chat\Identity;
@@ -88,6 +89,59 @@ final class ChatController
         uksort($groups, fn (string $a, string $b) => $a === $here ? -1 : ($b === $here ? 1 : strcmp($a, $b)));
 
         return response()->json(['groups' => $groups]);
+    }
+
+    /**
+     * One person, for the card that opens when their name is pressed.
+     *
+     * **It used to open the conversation instead**, which is the right thing
+     * to do second and the wrong thing to do first: a directory is opened to
+     * find out who somebody is — what they do, whether they are even at work
+     * today — and answering that with a message box forces a guess before the
+     * question is answered, in front of a colleague who sees you typing.
+     *
+     * Only this portal's own people have a card. `find()` answers null for
+     * anybody else, and the browser then draws what the directory row already
+     * told it; nothing is invented and nothing is asked of another portal.
+     */
+    public function person(Request $request, ParticipantDirectory $directory): JsonResponse
+    {
+        $me = $directory->current();
+
+        if ($me === null) {
+            return response()->json(['message' => 'This account cannot use chat.'], 403);
+        }
+
+        $id = $request->string('user')->toString();
+
+        if (! Identity::looksLikeOurs($id)) {
+            return response()->json(['message' => 'That is not somebody here.'], 422);
+        }
+
+        /*
+         * The same rule as opening a conversation: somebody who may not be
+         * written to may not be read about either. A card is less than a
+         * message and still more than the portal said this person could see.
+         */
+        if ($directory instanceof RestrictsChat) {
+            $allowed = $directory->visibleTo($me);
+
+            if ($allowed !== null && ! in_array($id, $allowed, true)) {
+                return response()->json(['message' => 'You cannot see this person.'], 403);
+            }
+        }
+
+        $person = $directory->find($id);
+
+        return response()->json([
+            /* Said plainly, because the browser draws two different things:
+               a card for a colleague here, and the directory row it already
+               has for somebody in another portal. */
+            'ours' => $person !== null,
+            'card' => $person !== null && $directory instanceof DescribesPeople
+                ? $directory->card($person)
+                : null,
+        ]);
     }
 
     /**

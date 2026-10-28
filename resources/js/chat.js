@@ -1465,16 +1465,6 @@ export function registerChat(Alpine) {
         peopleFailed: false,
         searching: null,
 
-        /**
-         * The colleague whose card is open, in the list's place.
-         *
-         * `{ person, loading, detail, ours }` — the directory row we already
-         * had, whatever the portal could add to it, and whether this is one of
-         * our own people at all. Null is the list.
-         */
-        card: null,
-        cardFailed: false,
-
         init() {
             /* Connecting is a websocket and a vendor handshake, and nobody
                opened the portal to look at the chat bar. It happens once the
@@ -1534,7 +1524,6 @@ export function registerChat(Alpine) {
 
             this.tab = tab;
             this.search = '';
-            this.closeCard();
             this.$store.chat.closeThread();
             this.load();
         },
@@ -1542,7 +1531,6 @@ export function registerChat(Alpine) {
         close() {
             this.tab = null;
             this.wide = false;
-            this.closeCard();
             this.$store.chat.closeThread();
         },
 
@@ -1574,7 +1562,6 @@ export function registerChat(Alpine) {
          * so it is one request behind the typing rather than one per keystroke.
          */
         searchPeople() {
-            this.closeCard();
             clearTimeout(this.searching);
             this.searching = setTimeout(() => this.loadPeople(), 250);
         },
@@ -1646,52 +1633,7 @@ export function registerChat(Alpine) {
             const cid = await this.$store.chat.messagePerson(userId);
 
             this.tab = 'chats';
-            this.closeCard();
             this.open(cid);
-        },
-
-        /**
-         * Pressing a name opens who they are, not a message box.
-         *
-         * It used to open the conversation, which is the right thing to do
-         * second: a directory is read to find out what somebody does and
-         * whether they are even at work today, and answering that with an
-         * empty message box makes somebody guess in front of the colleague
-         * who can see them typing. Writing to them is a button on the card.
-         *
-         * The row we already have is shown at once and the rest fills in,
-         * because the name, the photograph and the title are already here and
-         * a card that appears blank for a moment reads as a card that failed.
-         */
-        async openCard(person) {
-            this.card = { person, loading: true, detail: null, ours: false };
-            this.cardFailed = false;
-
-            try {
-                const answer = await this.$store.chat.personCard(person.id);
-
-                /* Somebody pressed another name while this was in the air. */
-                if (this.card?.person?.id !== person.id) return;
-
-                this.card = { person, loading: false, detail: answer.card ?? null, ours: !! answer.ours };
-            } catch {
-                if (this.card?.person?.id !== person.id) return;
-
-                this.card = { person, loading: false, detail: null, ours: false };
-                this.cardFailed = true;
-            }
-        },
-
-        closeCard() {
-            this.card = null;
-            this.cardFailed = false;
-        },
-
-        /** The card's own button: now that you know who they are, write to them. */
-        async messageFromCard() {
-            const id = this.card?.person?.id;
-
-            if (id) await this.message(id);
         },
 
         get boxes() {

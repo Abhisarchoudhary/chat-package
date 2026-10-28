@@ -4,10 +4,9 @@
     What the portal can say about a colleague: whether they are at work, the
     hours they are working today, and the words about them.
 
-    `detail` is an Alpine expression, not a value — `card.detail` in the
-    directory, `who` in a conversation's header. One file because the two are
-    the same four facts, and two copies would disagree the first time either
-    was touched.
+    `detail` is an Alpine expression rather than a value — `who` in a
+    conversation's header — so this stays one file when a second place needs
+    the same four facts under a different name.
 
     Nothing here is assembled from a code. The portal sends the sentence,
     because only it knows whether a quiet hour is a break, a day off or leave.

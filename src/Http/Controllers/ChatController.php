@@ -92,17 +92,20 @@ final class ChatController
     }
 
     /**
-     * One person, for the card that opens when their name is pressed.
+     * One person, for the card the name at the top of a conversation opens.
      *
-     * **It used to open the conversation instead**, which is the right thing
-     * to do second and the wrong thing to do first: a directory is opened to
-     * find out who somebody is — what they do, whether they are even at work
-     * today — and answering that with a message box forces a guess before the
-     * question is answered, in front of a colleague who sees you typing.
+     * **That name was a label**: pressing it folded the window, which is what
+     * the rest of that header already does. It is the one place somebody is
+     * already looking when they wonder whether the colleague they are writing
+     * to is even at work today, so it answers.
+     *
+     * Not offered from the directory list, deliberately: a name there is
+     * pressed to start writing to somebody, and a card in the way of that adds
+     * a step to the thing people came to do.
      *
      * Only this portal's own people have a card. `find()` answers null for
-     * anybody else, and the browser then draws what the directory row already
-     * told it; nothing is invented and nothing is asked of another portal.
+     * anybody else and the browser says so, rather than drawing a card of
+     * guesses; nothing here reaches across to another portal to ask.
      */
     public function person(Request $request, ParticipantDirectory $directory): JsonResponse
     {

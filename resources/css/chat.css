@@ -1055,58 +1055,19 @@ body.rc-locked { overflow: hidden; }
 
 /* ------------------------------------------------------------------ a person
 
-   One colleague, drawn where the list was. It is deliberately not a floating
-   card over the list: the panel is one column wide and everything in this
-   chat answers in the same column, so nothing moves under the cursor.
+   What is inside the bubble that the name at the top of a conversation opens
+   (`.rc-who--bubble`, further down, is the bubble itself).
 
-   Nothing here is drawn from a code. The portal sends words — "On annual
-   leave until 3 Nov" — because only it knows whether a quiet hour is a break,
-   a day off or leave, and which language to say that in. */
-.rc-who { padding: 10px 12px 14px; }
+   Deliberately not offered from the directory list: a name there is pressed to
+   start writing to somebody, and a card in the way of that is a step added to
+   the thing people came to do. This is for the conversation already open, where
+   the question is about the person you are mid-sentence with.
 
-.rc-who__back {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 10px;
-    padding: 0;
-    font: inherit;
-    font-size: var(--rc-text-sm);
-    color: var(--rc-muted);
-    background: none;
-    border: 0;
-    cursor: pointer;
-}
-
-.rc-who__back::before { content: '\2039'; font-size: var(--rc-text-lg); line-height: 1; }
-.rc-who__back:hover { color: var(--rc-text); }
-
-.rc-who__head { display: flex; align-items: center; gap: 10px; }
-
-.rc-who__who { min-width: 0; display: flex; flex-direction: column; }
-
-.rc-who__name {
-    font-size: var(--rc-text-lg);
-    font-weight: 600;
-    color: var(--rc-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.rc-who__role {
-    font-size: var(--rc-text-sm);
-    color: var(--rc-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Grey by default and green only for somebody actually here: a pill that is
-   coloured whatever it says is a pill nobody reads. */
+   Nothing here is drawn from a code. The portal sends words — "On annual leave
+   until 3 Nov" — because only it knows whether a quiet hour is a day off or
+   leave, and which language to say that in. */
 .rc-who__state {
     display: inline-block;
-    margin-top: 10px;
     padding: 3px 8px;
     font-size: var(--rc-text-xs);
     font-weight: 600;
@@ -1152,21 +1113,6 @@ body.rc-locked { overflow: hidden; }
 
 .rc-who__note { margin-top: 10px; font-size: var(--rc-text-sm); line-height: 1.55; color: var(--rc-muted); }
 
-.rc-who__go {
-    width: 100%;
-    margin-top: 14px;
-    height: var(--rc-control);
-    font: inherit;
-    font-size: var(--rc-text-sm);
-    font-weight: 600;
-    color: #fff;
-    background: var(--rc-primary);
-    border: 0;
-    border-radius: var(--rc-control-radius);
-    cursor: pointer;
-}
-
-.rc-who__go:hover { filter: brightness(.95); }
 
 /* The rows here are on white. The page's rail is navy and shares the class,
    so the light reading of a row belongs to the panel and not to the row. */
@@ -1788,12 +1734,9 @@ body.rc-locked { overflow: hidden; }
     transform: rotate(45deg);
 }
 
-/* The first thing in the bubble sits at the top of it. In the directory the
-   same pill follows a name and a face, which is where that margin is from. */
-.rc-who--bubble > .rc-who__state,
-.rc-who--bubble > .rc-who__fact:first-child,
-.rc-who--bubble > .rc-who__about:first-child,
-.rc-who--bubble > .rc-who__note:first-child { margin-top: 0; }
+/* Whatever comes first in the bubble sits at the top of it: every row in
+   here carries a margin for the row above it, and the first one has none. */
+.rc-who--bubble > :first-child { margin-top: 0; }
 
 /* The name is a control now, and looks like the header it sits in rather than
    like a button dropped into it. */

@@ -1376,6 +1376,78 @@ export function registerChat(Alpine) {
      * Expanded, the same panel fills the window and shows the full chat, which
      * is why there is no separate chat page that could be out of step with it.
      */
+    /**
+     * One conversation window, and who it is with.
+     *
+     * The name at the top of a conversation was a label: the only thing it did
+     * was fold the window, which is also what the rest of the header does. It
+     * is the one place somebody is already looking when they wonder whether the
+     * person they are writing to is even at work today — so pressing it says.
+     */
+    Alpine.data('chatBox', () => ({
+        folded: false,
+
+        /** Whose card is showing, what it holds, and how it went. */
+        whoFor: null,
+        who: null,
+        whoOurs: false,
+        whoLoading: false,
+        whoFailed: false,
+
+        /**
+         * The one other person here, or null.
+         *
+         * A group has no "them" — a card over a channel of nine would have to
+         * pick one of them, and whichever it picked would be the wrong one.
+         */
+        otherIn(conversation) {
+            if (! conversation || conversation.type === 'team') return null;
+
+            const ids = conversation.memberIds ?? [];
+
+            return ids.length === 1 ? ids[0] : null;
+        },
+
+        async showWho(userId) {
+            if (! userId) return;
+
+            /* Pressing the name again puts it away: one press out, one back,
+               which is what the tabs in the bar already do. */
+            if (this.whoFor === userId) return this.closeWho();
+
+            this.whoFor = userId;
+            this.who = null;
+            this.whoOurs = false;
+            this.whoFailed = false;
+            this.whoLoading = true;
+
+            try {
+                const answer = await this.$store.chat.personCard(userId);
+
+                /* The window was closed, or another name pressed, while this
+                   was in the air. */
+                if (this.whoFor !== userId) return;
+
+                this.who = answer.card ?? null;
+                this.whoOurs = !! answer.ours;
+            } catch {
+                if (this.whoFor !== userId) return;
+
+                this.whoFailed = true;
+            } finally {
+                if (this.whoFor === userId) this.whoLoading = false;
+            }
+        },
+
+        closeWho() {
+            this.whoFor = null;
+            this.who = null;
+            this.whoOurs = false;
+            this.whoFailed = false;
+            this.whoLoading = false;
+        },
+    }));
+
     Alpine.data('chatBar', () => ({
         /** Which tab is open. Null is the bar on its own. */
         tab: null,

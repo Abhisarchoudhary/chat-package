@@ -81,19 +81,30 @@
      sit on top of the lists that opened them. --}}
 <div class="rc-boxes">
     <template x-for="cid in boxes" :key="cid">
-        <div class="rc-box" x-data="{ folded: false }" :class="folded && 'rc-box--folded'">
+        <div class="rc-box" x-data="chatBox()" :class="folded && 'rc-box--folded'">
             <div class="rc-box__head" @click="folded = ! folded">
                 {{-- Whether they are here is the dot on the face, not a word
                      under the name: said in writing it is a second line, and a
                      second line is most of the height of this header. --}}
-                <x-chat::avatar
-                    name="$store.chat.find(cid)?.title"
-                    image="$store.chat.find(cid)?.image"
-                    online="$store.chat.find(cid)?.type !== 'team' ? $store.chat.find(cid)?.online : null"
-                    size="sm"
-                />
+                {{-- The name is the way to who they are, where a group's is
+                     only a name: `otherIn()` answers null for a channel, and
+                     pressing it then does what the rest of the header does. --}}
+                <button
+                    type="button"
+                    class="rc-box__who"
+                    :class="otherIn($store.chat.find(cid)) && 'rc-box__who--open'"
+                    :title="otherIn($store.chat.find(cid)) ? '{{ __('Who they are') }}' : null"
+                    @click.stop="otherIn($store.chat.find(cid)) ? showWho(otherIn($store.chat.find(cid))) : (folded = ! folded)"
+                >
+                    <x-chat::avatar
+                        name="$store.chat.find(cid)?.title"
+                        image="$store.chat.find(cid)?.image"
+                        online="$store.chat.find(cid)?.type !== 'team' ? $store.chat.find(cid)?.online : null"
+                        size="sm"
+                    />
 
-                <strong class="rc-box__title" x-text="$store.chat.find(cid)?.title"></strong>
+                    <strong class="rc-box__title" x-text="$store.chat.find(cid)?.title"></strong>
+                </button>
 
                 <template x-if="$store.chat.abilities['call']">
                     <button
@@ -123,6 +134,27 @@
                 <button type="button" class="rc-icon-button rc-icon-button--sm rc-icon-button--dark" @click.stop="$store.chat.closeBox(cid)" title="{{ __('Close') }}">
                     <x-chat::icon name="close" />
                 </button>
+                {{-- Who they are, hung off the name that was pressed and over
+                     the conversation rather than in place of it: this is read
+                     while writing, and a card that replaced the messages would
+                     take away the thing being answered. --}}
+                <template x-if="whoFor && ! folded">
+                    <div class="rc-who rc-who--bubble" @click.outside="closeWho()" @click.stop>
+                        <x-chat::person-detail detail="who" />
+
+                        <template x-if="whoLoading">
+                            <p class="rc-who__note">{{ __('Looking them up…') }}</p>
+                        </template>
+
+                        <template x-if="! whoLoading && ! whoOurs && ! whoFailed">
+                            <p class="rc-who__note">{{ __('They work in another portal, so this one knows their name and what they do and nothing further.') }}</p>
+                        </template>
+
+                        <template x-if="whoFailed">
+                            <p class="rc-who__note">{{ __('Their details could not be loaded.') }}</p>
+                        </template>
+                    </div>
+                </template>
             </div>
 
             <template x-if="! folded">
@@ -438,30 +470,7 @@
                                                 </span>
                                             </div>
 
-                                            {{-- Whether they are at work, said as a sentence by the
-                                                 portal rather than assembled here: only it knows
-                                                 whether a quiet hour is a break, a day off or leave. --}}
-                                            <template x-if="card.detail?.status">
-                                                <span class="rc-who__state" :class="card.detail.status.in && 'rc-who__state--in'" x-text="card.detail.status.label"></span>
-                                            </template>
-
-                                            <template x-if="card.detail?.shift">
-                                                <p class="rc-who__fact">
-                                                    <span class="rc-who__factName">{{ __('Today') }}</span>
-                                                    <span x-text="card.detail.shift"></span>
-                                                </p>
-                                            </template>
-
-                                            <template x-if="card.detail?.leave">
-                                                <p class="rc-who__fact">
-                                                    <span class="rc-who__factName">{{ __('Leave') }}</span>
-                                                    <span x-text="card.detail.leave"></span>
-                                                </p>
-                                            </template>
-
-                                            <template x-if="card.detail?.bio">
-                                                <p class="rc-who__bio" x-text="card.detail.bio"></p>
-                                            </template>
+                                            <x-chat::person-detail detail="card.detail" />
 
                                             {{-- Said rather than left blank. A card that is empty
                                                  for a moment reads as a card that failed, and a

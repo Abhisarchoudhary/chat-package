@@ -1128,13 +1128,26 @@ body.rc-locked { overflow: hidden; }
 
 .rc-who__factName { flex: none; width: 46px; color: var(--rc-muted); }
 
-.rc-who__bio {
+/* The words about them, and under those the two facts read fresh each time.
+   One rule above both, because they are one block: a border on each would draw
+   a line between a sentence and its own footnote. */
+.rc-who__about {
     margin-top: 10px;
     padding-top: 10px;
+    border-top: 1px solid var(--rc-line);
+}
+
+.rc-who__bio {
     font-size: var(--rc-text-sm);
     line-height: 1.6;
+    color: var(--rc-text);
+}
+
+.rc-who__facts {
+    margin-top: 6px;
+    font-size: var(--rc-text-xs);
+    line-height: 1.5;
     color: var(--rc-muted);
-    border-top: 1px solid var(--rc-line);
 }
 
 .rc-who__note { margin-top: 10px; font-size: var(--rc-text-sm); line-height: 1.55; color: var(--rc-muted); }
@@ -1730,3 +1743,45 @@ body.rc-locked { overflow: hidden; }
     font-size: var(--rc-text-sm);
     line-height: 1.45;
 }
+
+/* The same card, hung off the name at the top of a conversation.
+
+   A child of the header rather than of the window, so it hangs from the thing
+   that was pressed and no height is written down anywhere to go out of step
+   with the header's own. It floats over the messages instead of pushing them
+   down: this is read *while* writing, and a panel that shortened the
+   conversation would take away what is being answered. */
+.rc-box__head { position: relative; }
+
+.rc-who--bubble {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 6px;
+    right: 6px;
+    z-index: 6;
+    padding: 12px;
+    color: var(--rc-text);
+    background: var(--rc-surface);
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow);
+    cursor: default;
+}
+
+/* The name is a control now, and looks like the header it sits in rather than
+   like a button dropped into it. */
+.rc-box__who {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.rc-box__who--open:hover .rc-box__title { text-decoration: underline; }

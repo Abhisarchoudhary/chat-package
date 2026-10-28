@@ -81,6 +81,17 @@ trait TalksInChat
         return method_exists($this, 'isActive') ? (bool) $this->isActive() : true;
     }
 
+    /**
+     * A colleague, and so in the directory.
+     *
+     * Overridden on the model for somebody who is in chat without working
+     * here -- `ChatParticipant` says what that costs and what it does not.
+     */
+    public function chatListed(): bool
+    {
+        return true;
+    }
+
     /** This person's id in Stream, the same in every portal. */
     public function chatId(): string
     {

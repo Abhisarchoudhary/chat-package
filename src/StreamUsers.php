@@ -72,6 +72,13 @@ final class StreamUsers
             /* Per organisation like the department, because somebody who works
                in two of the portals is one person with two jobs. */
             'titles.'.$organisation => $person->chatTitle(),
+            /*
+             * Whether this portal puts them in the directory everybody
+             * browses. Per organisation for the same reason as the rest: the
+             * portal that holds somebody is the only one that knows which
+             * sort they are, and it must not answer for the others.
+             */
+            'listed.'.$organisation => $person->chatListed(),
         ];
 
         $mark = 'chat.synced.'.$id;
@@ -199,6 +206,38 @@ final class StreamUsers
         $answer = $this->stream->query('users', ['filter_conditions' => ['id' => $id], 'limit' => 1]);
 
         return $answer['users'][0] ?? null;
+    }
+
+    /**
+     * Whether a Stream record belongs in the directory everybody browses.
+     *
+     * **Missing is listed.** Everybody written before this field was invented
+     * has no `listed` on them at all, and reading that as "hide them" would
+     * empty four directories the moment this shipped -- and go on emptying
+     * them for every portal still a version behind.
+     *
+     * Listed by one of the four is listed: somebody who is a colleague in the
+     * recruitment portal and a client of Royal York is in the directory,
+     * because they are somebody's colleague. It takes every portal that holds
+     * them saying no to keep them out.
+     *
+     * @param  array<string, mixed>  $person
+     */
+    public static function listed(array $person): bool
+    {
+        $listed = $person['listed'] ?? null;
+
+        if (! is_array($listed)) {
+            return true;
+        }
+
+        foreach ($listed as $here) {
+            if ($here) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -133,6 +133,41 @@ php artisan chat:sync            # fill the directory; nightly afterwards
 php artisan chat:sync --limit=5  # a first look before letting it loose
 ```
 
+### Somebody who is in chat without being a colleague
+
+An outside party — an institution reading its own pages, a client — has to be
+in Stream to be reachable at all, and being in Stream used to mean being in the
+directory that every portal browses: a stranger in the company phone book,
+found by anybody in any of the four who happened to scroll.
+
+So the person says they are not one:
+
+```php
+class InstitutionUser extends User
+{
+    public function chatListed(): bool
+    {
+        return false;
+    }
+}
+```
+
+They keep everything else. They are synced, they have an id, they receive
+messages, and a conversation they have started goes on showing in the other
+person's conversations — which is where it belongs, because the directory is
+for finding somebody to start with. They are simply not in the list, in any
+portal, until they write first.
+
+What *they* may see and write to is the narrower question, and a different
+interface answers it — `Contracts\RestrictsChat`, which also says why both of
+them are the screen rather than Stream, and what the Stream role has to do for
+either to be a rule.
+
+The portal that holds somebody is the only one that knows which sort they are,
+so the answer is written onto their record by that portal's own `chat:sync`,
+and every portal reads it there. A portal still on an older version of this
+package does not read it, and goes on showing them.
+
 ---
 
 ## Adding the other two portals

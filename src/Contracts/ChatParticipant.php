@@ -65,4 +65,30 @@ interface ChatParticipant
 
     /** Somebody who has left keeps their history and loses their access. */
     public function chatActive(): bool;
+
+    /**
+     * Whether this person belongs in the directory everybody browses.
+     *
+     * **True for a colleague**, which is everybody a portal had before this
+     * was asked, and `TalksInChat` answers it so nothing changes for a portal
+     * that never thinks about it.
+     *
+     * False for somebody who is in chat without being one of the company's
+     * own: an institution reading its own pages has to be reachable --
+     * written to, and able to write -- and has no business appearing in a
+     * list of colleagues that four portals browse. The list is for finding
+     * the person you need; an outside party in it is a stranger in the
+     * company phone book.
+     *
+     * **It hides them from the list, not from chat.** They are still synced,
+     * still have an id, still receive messages, and a conversation they are
+     * already in goes on showing in the other person's conversations. What
+     * they may themselves see and write to is the narrower question
+     * `RestrictsChat` answers.
+     *
+     * The answer travels with the person rather than with the portal asking,
+     * because the four portals read one directory and only the portal that
+     * holds somebody knows which sort they are.
+     */
+    public function chatListed(): bool;
 }

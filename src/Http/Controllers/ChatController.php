@@ -50,6 +50,25 @@ final class ChatController
         }
 
         /*
+         * **Out first: everybody no portal lists.**
+         *
+         * Stream holds an institution's login because it has to — its account
+         * manager writes to it, and it writes back — and that put somebody
+         * from outside the company in the list of colleagues that all four
+         * portals browse, to be found by anybody in any of them.
+         *
+         * Nobody is shown them until they write first, and a conversation
+         * they have started is in the other person's conversations, where it
+         * belongs: the directory is for finding somebody to start with.
+         *
+         * This is the screen, not Stream. A token that may `search-user` can
+         * still ask Stream for them directly, which is the same caveat
+         * `RestrictsChat` carries and has the same answer — the role that
+         * token is issued with.
+         */
+        $people = array_values(array_filter($people, StreamUsers::listed(...)));
+
+        /*
          * Narrowed where the portal narrows it (Contracts\RestrictsChat).
          * Stream answers with everybody it holds, which is right for colleagues
          * and wrong for somebody from outside the company — and the portal is
